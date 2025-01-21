@@ -1,0 +1,154 @@
+{
+  "name": "files-to-llm-prompt",
+  "displayName": "Files to LLM Prompt",
+  "description": "Concatenate files into prompts for LLMs. Optimized for Claude.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:files-to-llm-prompt-explorer",
+    "onView:files-to-llm-prompt-settings",
+    "onCommand:files-to-llm-prompt.generatePrompt",
+    "onCommand:files-to-llm-prompt.openPreview"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "files-to-llm-prompt.generatePrompt",
+        "title": "Generate LLM Prompt from Files",
+        "icon": "$(play)"
+      },
+      {
+        "command": "files-to-llm-prompt.selectAll",
+        "title": "Select All Files",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "files-to-llm-prompt.deselectAll",
+        "title": "Deselect All Files",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "files-to-llm-prompt.openPreview",
+        "title": "Open Files to Prompt Preview"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "files-to-llm-prompt.selectAll",
+          "when": "view == files-to-llm-prompt-explorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "files-to-llm-prompt.deselectAll",
+          "when": "view == files-to-llm-prompt-explorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "files-to-llm-prompt.generatePrompt",
+          "when": "view == files-to-llm-prompt-explorer",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "files-to-llm-prompt-sidebar",
+          "title": "Files to LLM Prompt",
+          "icon": "$(file-text)"
+        }
+      ]
+    },
+    "views": {
+      "files-to-llm-prompt-sidebar": [
+        {
+          "id": "files-to-llm-prompt-explorer",
+          "name": "Files Explorer",
+          "type": "tree",
+          "visibility": "visible"
+        },
+        {
+          "id": "files-to-llm-prompt-settings",
+          "name": "Settings",
+          "type": "webview",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Files to LLM Prompt",
+      "properties": {
+        "files-to-llm-prompt.includeHidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show hidden files and folders (those that start with a dot) in the file explorer"
+        },
+        "files-to-llm-prompt.includeDirectories": {
+          "type": "boolean",
+          "default": false,
+          "description": "When using ignore patterns, also apply them to directory names (not just file names)"
+        },
+        "files-to-llm-prompt.ignoreGitignore": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ignore any .gitignore rules when showing files (show all files even if they're in .gitignore)"
+        },
+        "files-to-llm-prompt.ignorePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "File patterns to hide from the explorer (e.g., '*.log' to hide log files, 'temp*' to hide files starting with 'temp')"
+        },
+        "files-to-llm-prompt.outputFormat": {
+          "type": "string",
+          "enum": [
+            "default",
+            "claude-xml"
+          ],
+          "default": "claude-xml",
+          "description": "Format of the generated prompt: 'claude-xml' for Claude's XML format, 'default' for simple text"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.96.0",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "esbuild": "^0.24.0",
+    "esbuild-plugin-copy": "^2.1.1",
+    "eslint": "^9.16.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "files-to-llm-prompt": "file:"
+  }
+}
