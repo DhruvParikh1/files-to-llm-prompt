@@ -111,8 +111,12 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                         );
                         
                         if (type === vscode.FileType.File) {
-                            this.allFiles.add(uri.fsPath);
-                            this.fileToDirectoryMap.set(uri.fsPath, element.resourceUri.fsPath);
+                            // Only add to allFiles if it passes the filters
+                            const shouldAdd = this.shouldInclude(name, false, element.resourceUri);
+                            if (shouldAdd) {
+                                this.allFiles.add(uri.fsPath);
+                                this.fileToDirectoryMap.set(uri.fsPath, element.resourceUri.fsPath);
+                            }
                         }
 
                         return item;
