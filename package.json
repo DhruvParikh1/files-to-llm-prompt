@@ -88,17 +88,17 @@
         "files-to-llm-prompt.includeHidden": {
           "type": "boolean",
           "default": false,
-          "description": "Show hidden files and folders (those that start with a dot) in the file explorer"
+          "description": "Show files and folders that start with a dot (.)"
+        },
+        "files-to-llm-prompt.overrideGitignore": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show all files, including those listed in .gitignore files"
         },
         "files-to-llm-prompt.includeDirectories": {
           "type": "boolean",
           "default": false,
-          "description": "When using ignore patterns, also apply them to directory names (not just file names)"
-        },
-        "files-to-llm-prompt.ignoreGitignore": {
-          "type": "boolean",
-          "default": false,
-          "description": "Ignore any .gitignore rules when showing files (show all files even if they're in .gitignore)"
+          "description": "Apply ignore patterns to folder names as well as file names"
         },
         "files-to-llm-prompt.ignorePatterns": {
           "type": "array",
@@ -106,7 +106,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "File patterns to hide from the explorer (e.g., '*.log' to hide log files, 'temp*' to hide files starting with 'temp')"
+          "description": "Patterns for files and folders to hide from the explorer (e.g., *.log, node_modules)"
         },
         "files-to-llm-prompt.outputFormat": {
           "type": "string",
@@ -115,7 +115,7 @@
             "claude-xml"
           ],
           "default": "claude-xml",
-          "description": "Format of the generated prompt: 'claude-xml' for Claude's XML format, 'default' for simple text"
+          "description": "Format to use when generating the prompt output"
         }
       }
     }
