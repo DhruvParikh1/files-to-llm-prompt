@@ -225,14 +225,24 @@ class FileItem extends vscode.TreeItem {
     ) {
         super(label, collapsibleState);
         
+        // Determine selection state first
+        const isSelected = contextValue === 'file' 
+            ? selectedFiles.has(resourceUri.fsPath)
+            : this.isDirectorySelected(resourceUri.fsPath);
+
+        // Set basic properties
         this.tooltip = this.label;
         const relativePath = path.relative(
             vscode.workspace.workspaceFolders?.[0].uri.fsPath || '',
             resourceUri.fsPath
         );
         
-        
+        // Add selection status to description
+        this.description = isSelected 
+            ? `${relativePath} (Selected)` 
+            : relativePath;
 
+        // Set icon
         if (contextValue === 'file') {
             this.iconPath = new vscode.ThemeIcon('file');
         } else if (contextValue === 'folder') {
@@ -246,21 +256,12 @@ class FileItem extends vscode.TreeItem {
             arguments: [resourceUri.fsPath]
         };
 
-        // Only show checkbox if item is selected
-        const isSelected = contextValue === 'file' 
-            ? selectedFiles.has(resourceUri.fsPath)
-            : this.isDirectorySelected(resourceUri.fsPath);
-
+        // Only show checkbox if selected
         if (isSelected) {
             this.checkboxState = {
                 state: vscode.TreeItemCheckboxState.Checked,
                 tooltip: 'Selected (click name to deselect)'
             };
         }
-
-        this.description = isSelected 
-            ? `${relativePath} (Selected)` 
-            : relativePath;
-        // No else clause - we don't set checkboxState at all if not selected
     }
 }
