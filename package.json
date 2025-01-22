@@ -36,6 +36,10 @@
       {
         "command": "files-to-llm-prompt.openPreview",
         "title": "Open Files to Prompt Preview"
+      },
+      {
+        "command": "files-to-llm-prompt.refreshFileExplorer",
+        "title": "Refresh Files Explorer"
       }
     ],
     "menus": {

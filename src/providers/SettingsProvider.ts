@@ -1,9 +1,13 @@
-// SettingsProvider.ts
 import * as vscode from 'vscode';
 
 export class SettingsProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'files-to-llm-prompt-settings';
     private _view?: vscode.WebviewView;
+    private debugLogger: vscode.OutputChannel;
+
+    constructor() {
+        this.debugLogger = vscode.window.createOutputChannel("Files-to-LLM Settings");
+    }
 
     resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -11,16 +15,19 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
         _token: vscode.CancellationToken,
     ) {
         this._view = webviewView;
+        this.debugLogger.appendLine('\n=== Resolving Settings Webview ===');
 
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: []
         };
 
+        const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
+        this.debugLogger.appendLine('Current configuration: ' + JSON.stringify(config, null, 2));
+
         webviewView.webview.html = this._getHtmlForWebview();
         this._setWebviewMessageListener(webviewView.webview);
         
-        // Refresh view when it becomes visible
         webviewView.onDidChangeVisibility(() => {
             if (webviewView.visible) {
                 webviewView.webview.html = this._getHtmlForWebview();
@@ -30,6 +37,8 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
 
     private _getHtmlForWebview() {
         const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
+        this.debugLogger.appendLine('\n=== Generating Settings HTML ===');
+        this.debugLogger.appendLine('Using configuration: ' + JSON.stringify(config, null, 2));
         
         return `<!DOCTYPE html>
             <html lang="en">
@@ -106,13 +115,6 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
                     select:focus, textarea:focus {
                         outline: 1px solid var(--vscode-focusBorder);
                         border-color: var(--vscode-focusBorder);
-                    }
-                    .info-icon {
-                        display: inline-block;
-                        width: 16px;
-                        height: 16px;
-                        margin-left: 4px;
-                        opacity: 0.7;
                     }
                 </style>
             </head>
@@ -191,10 +193,12 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
 
                 <script>
                     const vscode = acquireVsCodeApi();
+                    console.log('Settings script loaded');
                     
                     // Handle checkbox and select changes
                     document.querySelectorAll('input[type="checkbox"], select').forEach(element => {
                         element.addEventListener('change', (e) => {
+                            console.log('Setting changed:', e.target.id, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
                             vscode.postMessage({
                                 type: 'updateSetting',
                                 setting: e.target.id,
@@ -203,17 +207,14 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
                         });
                     });
 
-                    // Handle ignore patterns changes with debouncing
-                    let timeout;
-                    document.getElementById('ignorePatterns').addEventListener('input', (e) => {
-                        clearTimeout(timeout);
-                        timeout = setTimeout(() => {
-                            vscode.postMessage({
-                                type: 'updateSetting',
-                                setting: 'ignorePatterns',
-                                value: e.target.value.split('\n').filter(pattern => pattern.trim())
-                            });
-                        }, 500);
+                    // Handle ignore patterns changes
+                    document.getElementById('ignorePatterns').addEventListener('change', (e) => {
+                        console.log('Patterns changed:', e.target.value);
+                        vscode.postMessage({
+                            type: 'updateSetting',
+                            setting: 'ignorePatterns',
+                            value: e.target.value.split('\\n').filter(pattern => pattern.trim())
+                        });
                     });
                 </script>
             </body>
@@ -223,15 +224,24 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
     private _setWebviewMessageListener(webview: vscode.Webview) {
         webview.onDidReceiveMessage(
             async (message) => {
+                this.debugLogger.appendLine(`\n=== Received Message ===`);
+                this.debugLogger.appendLine(JSON.stringify(message, null, 2));
+
                 switch (message.type) {
                     case 'updateSetting':
-                        await vscode.workspace.getConfiguration('files-to-llm-prompt').update(
-                            message.setting,
-                            message.value,
-                            vscode.ConfigurationTarget.Global
-                        );
-                        // Notify that settings have changed
-                        vscode.commands.executeCommand('files-to-llm-prompt.refreshFileExplorer');
+                        try {
+                            await vscode.workspace.getConfiguration('files-to-llm-prompt').update(
+                                message.setting,
+                                message.value,
+                                vscode.ConfigurationTarget.Global
+                            );
+                            this.debugLogger.appendLine('Setting updated successfully');
+                            vscode.commands.executeCommand('files-to-llm-prompt.refreshFileExplorer');
+                            this.debugLogger.appendLine('Refresh command sent');
+                        } catch (error) {
+                            this.debugLogger.appendLine(`Error updating setting: ${error}`);
+                            console.error('Error updating setting:', error);
+                        }
                         break;
                 }
             },

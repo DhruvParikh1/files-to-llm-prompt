@@ -7,30 +7,42 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     private selectedFiles: Set<string> = new Set();
     private allFiles: Set<string> = new Set();
-    private fileToDirectoryMap: Map<string, string> = new Map(); // Maps files to their parent directory
+    private fileToDirectoryMap: Map<string, string> = new Map();
     private treeView?: vscode.TreeView<FileItem>;
+    private debugLogger: vscode.OutputChannel;
 
     constructor(private context: vscode.ExtensionContext) {
-        // Register the toggle command for both files and directories
+        // Create debug output channel
+        this.debugLogger = vscode.window.createOutputChannel("Files-to-LLM Debug");
+        
+        // Listen for configuration changes
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(e => {
+                if (e.affectsConfiguration('files-to-llm-prompt')) {
+                    this.debugLogger.appendLine('\n=== Configuration Changed ===');
+                    const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
+                    this.debugLogger.appendLine(`New config: ${JSON.stringify(config, null, 2)}`);
+                    this.refresh();
+                }
+            })
+        );
+        
         context.subscriptions.push(
             vscode.commands.registerCommand('files-to-llm-prompt.toggleFile', async (filePath: string) => {
                 await this.toggleFileSelection(filePath);
             })
         );
 
-        // Create and store the TreeView
         this.treeView = vscode.window.createTreeView('files-to-llm-prompt-explorer', {
             treeDataProvider: this
         });
 
-        // Register select all command
         context.subscriptions.push(
             vscode.commands.registerCommand('files-to-llm-prompt.selectAll', () => {
                 this.selectAll();
             })
         );
 
-        // Register deselect all command
         context.subscriptions.push(
             vscode.commands.registerCommand('files-to-llm-prompt.deselectAll', () => {
                 this.deselectAll();
@@ -38,6 +50,11 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         );
 
         context.subscriptions.push(this.treeView);
+        
+        // Log initial configuration
+        const initialConfig = vscode.workspace.getConfiguration('files-to-llm-prompt');
+        this.debugLogger.appendLine('\n=== Initial Configuration ===');
+        this.debugLogger.appendLine(`Config: ${JSON.stringify(initialConfig, null, 2)}`);
     }
 
     refresh(): void {
@@ -93,7 +110,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                             this.isDirectorySelected.bind(this)
                         );
                         
-                        // Track files and their parent directories
                         if (type === vscode.FileType.File) {
                             this.allFiles.add(uri.fsPath);
                             this.fileToDirectoryMap.set(uri.fsPath, element.resourceUri.fsPath);
@@ -103,7 +119,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                     })
             );
 
-            // Sort directories first, then files alphabetically
             return items.sort((a, b) => {
                 if (a.contextValue === b.contextValue) {
                     return a.label!.localeCompare(b.label!);
@@ -123,14 +138,48 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         const includeDirectories = config.get<boolean>('includeDirectories');
         const overrideGitignore = config.get<boolean>('overrideGitignore');
         
+        this.debugLogger.appendLine(`\n=== Checking shouldInclude ===`);
+        this.debugLogger.appendLine(`Name: ${name}`);
+        this.debugLogger.appendLine(`Is Directory: ${isDirectory}`);
+        this.debugLogger.appendLine(`Parent Path: ${parentUri.fsPath}`);
+        this.debugLogger.appendLine(`Include Hidden: ${includeHidden}`);
+        this.debugLogger.appendLine(`Include Directories: ${includeDirectories}`);
+        this.debugLogger.appendLine(`Override Gitignore: ${overrideGitignore}`);
+        this.debugLogger.appendLine(`Ignore Patterns: ${JSON.stringify(ignorePatterns)}`);
+        
         // Check for hidden files/folders
         if (!includeHidden && name.startsWith('.')) {
+            this.debugLogger.appendLine(`Excluded: Hidden file/folder`);
             return false;
         }
 
-        // Only apply directory filtering if includeDirectories is enabled
-        if (isDirectory && !includeDirectories) {
-            return true; // Show all directories when not filtering them
+        // Handle directory filtering
+        if (isDirectory) {
+            this.debugLogger.appendLine(`Checking directory: ${name}`);
+            if (!includeDirectories) {
+                this.debugLogger.appendLine(`Directory filtering disabled - showing directory`);
+                return true;
+            }
+
+            // If we get here, directory filtering is enabled
+            this.debugLogger.appendLine(`Directory filtering enabled - checking patterns`);
+            
+            // Check for exact matches first
+            for (const pattern of ignorePatterns) {
+                const trimmed = pattern.trim();
+                if (!trimmed) {continue;}
+                
+                this.debugLogger.appendLine(`Checking exact match with pattern: "${trimmed}"`);
+                if (name === trimmed) {
+                    this.debugLogger.appendLine(`Directory "${name}" exactly matches pattern "${trimmed}" - excluding`);
+                    return false;
+                }
+            }
+            
+            // If no exact matches found and it's a directory, we'll let it through
+            // to allow showing its contents (which will be filtered individually)
+            this.debugLogger.appendLine(`No exact directory matches - allowing directory to show contents`);
+            return true;
         }
 
         // Process ignore patterns
@@ -141,9 +190,13 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                     continue;
                 }
 
+                this.debugLogger.appendLine(`\nChecking pattern: "${pattern}"`);
+
                 // Special handling for simple directory/file names without glob patterns
                 if (!pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
+                    this.debugLogger.appendLine(`Simple pattern match check: "${name}" === "${pattern}"`);
                     if (name === pattern) {
+                        this.debugLogger.appendLine(`Excluded: Exact match with simple pattern`);
                         return false;
                     }
                     continue;
@@ -151,7 +204,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
                 // Convert glob pattern to regex
                 const globToRegex = (glob: string): string => {
-                    return glob
+                    const processed = glob
                         .replace(/\\/g, '/')
                         .replace(/\./g, '\\.')
                         .replace(/\*\*/g, '{{GLOBSTAR}}')
@@ -160,11 +213,13 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                         .replace(/{{GLOBSTAR}}/g, '.*')
                         .replace(/\[([^\]]+)\]/g, '[$1]')
                         .replace(/\//g, '\\/');
+                    this.debugLogger.appendLine(`Converted glob "${glob}" to regex: "${processed}"`);
+                    return processed;
                 };
 
-                // For exact pattern matches (like 'node_modules'), match both exact and path-containing cases
                 const basePattern = globToRegex(pattern);
                 const regex = new RegExp(`(^|/)${basePattern}(/|$)`);
+                this.debugLogger.appendLine(`Final regex: ${regex}`);
 
                 // Handle relative paths for better matching
                 const relativePath = path.relative(
@@ -172,20 +227,28 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                     path.join(parentUri.fsPath, name)
                 ).replace(/\\/g, '/');
 
-                if (regex.test(name) || regex.test(relativePath)) {
+                this.debugLogger.appendLine(`Testing against relativePath: "${relativePath}"`);
+                
+                if (regex.test(name)) {
+                    this.debugLogger.appendLine(`Excluded: Pattern matched name`);
+                    return false;
+                }
+                
+                if (regex.test(relativePath)) {
+                    this.debugLogger.appendLine(`Excluded: Pattern matched relative path`);
                     return false;
                 }
             } catch (error) {
+                this.debugLogger.appendLine(`Error processing pattern "${pattern}": ${error}`);
                 console.error(`Invalid ignore pattern: ${pattern}`, error);
             }
         }
 
-        // Check .gitignore if not overridden
         if (!overrideGitignore) {
-            // Note: Add .gitignore checking logic here if needed
-            // Currently handled separately in the main extension
+            // Add .gitignore checking logic here if needed
         }
         
+        this.debugLogger.appendLine(`Included: Passed all checks`);
         return true;
     }
 
@@ -197,7 +260,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             for (const [name, type] of entries) {
                 const entryUri = vscode.Uri.joinPath(uri, name);
                 
-                // Apply the same filtering logic when gathering files
                 if (!this.shouldInclude(name, type === vscode.FileType.Directory, uri)) {
                     continue;
                 }
@@ -216,11 +278,9 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
     }
 
     private isDirectorySelected(directoryPath: string): boolean {
-        // Get all files that are children of this directory
         const childFiles = Array.from(this.allFiles)
             .filter(filePath => this.fileToDirectoryMap.get(filePath) === directoryPath);
         
-        // Directory is selected if it has files and all of them are selected
         return childFiles.length > 0 && childFiles.every(file => this.selectedFiles.has(file));
     }
 
@@ -230,7 +290,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             const statResult = await vscode.workspace.fs.stat(uri);
             const isDirectory = statResult.type === vscode.FileType.Directory;
             
-            // Determine initial selection state
             const wasSelected = isDirectory ? 
                 this.isDirectorySelected(filePath) : 
                 this.selectedFiles.has(filePath);
@@ -238,10 +297,8 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             if (isDirectory) {
                 const files = await this.getAllFilesInDirectory(uri);
                 if (wasSelected) {
-                    // Deselect all files in directory
                     files.forEach(file => this.selectedFiles.delete(file));
                 } else {
-                    // Select all files in directory
                     files.forEach(file => this.selectedFiles.add(file));
                 }
             } else {
@@ -295,38 +352,32 @@ class FileItem extends vscode.TreeItem {
     ) {
         super(label, collapsibleState);
         
-        // Determine selection state first
         const isSelected = contextValue === 'file' 
             ? selectedFiles.has(resourceUri.fsPath)
             : this.isDirectorySelected(resourceUri.fsPath);
 
-        // Set basic properties
         this.tooltip = this.label;
         const relativePath = path.relative(
             vscode.workspace.workspaceFolders?.[0].uri.fsPath || '',
             resourceUri.fsPath
         );
         
-        // Add selection status to description
         this.description = isSelected 
             ? `${relativePath} (Selected)` 
             : relativePath;
 
-        // Set icon based on file/folder type
         if (contextValue === 'file') {
             this.iconPath = new vscode.ThemeIcon('file');
         } else if (contextValue === 'folder') {
             this.iconPath = new vscode.ThemeIcon('folder');
         }
         
-        // Add command for item click
         this.command = {
             title: 'Toggle Selection',
             command: 'files-to-llm-prompt.toggleFile',
             arguments: [resourceUri.fsPath]
         };
 
-        // Only show checkbox if selected
         if (isSelected) {
             this.checkboxState = {
                 state: vscode.TreeItemCheckboxState.Checked,

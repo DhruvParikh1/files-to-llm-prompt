@@ -5,10 +5,24 @@ import { PreviewPanel } from './panels/PreviewPanel';
 import { generatePrompt } from './utils/fileUtils';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Files to LLM Prompt extension is now active');
+    const debugLogger = vscode.window.createOutputChannel("Files-to-LLM Extension");
+    debugLogger.appendLine('Files to LLM Prompt extension is now active');
 
     // Register File Explorer Provider
     const fileExplorerProvider = new FileExplorerProvider(context);
+    
+    // Register refresh command first
+    let refreshCommand = vscode.commands.registerCommand(
+        'files-to-llm-prompt.refreshFileExplorer',
+        () => {
+            debugLogger.appendLine('Refresh command triggered');
+            fileExplorerProvider.refresh();
+            debugLogger.appendLine('Refresh completed');
+        }
+    );
+    context.subscriptions.push(refreshCommand);
+
+    // Register tree view
     context.subscriptions.push(
         vscode.window.registerTreeDataProvider(
             'files-to-llm-prompt-explorer',
@@ -35,11 +49,27 @@ export function activate(context: vscode.ExtensionContext) {
     statusBarItem.show();
     context.subscriptions.push(statusBarItem);
 
+    // Log when configuration changes
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('files-to-llm-prompt')) {
+                debugLogger.appendLine('\n=== Configuration Changed ===');
+                const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
+                debugLogger.appendLine(`New configuration: ${JSON.stringify(config, null, 2)}`);
+                fileExplorerProvider.refresh();
+                debugLogger.appendLine('Tree view refreshed due to configuration change');
+            }
+        })
+    );
+
     // Register Generate Prompt Command
     let generatePromptCommand = vscode.commands.registerCommand(
         'files-to-llm-prompt.generatePrompt',
         async () => {
+            debugLogger.appendLine('\n=== Generate Prompt Command Triggered ===');
             const selectedFiles = fileExplorerProvider.getSelectedFiles();
+            debugLogger.appendLine(`Selected files: ${JSON.stringify(selectedFiles)}`);
+
             if (selectedFiles.length === 0) {
                 vscode.window.showWarningMessage('Please select at least one file to generate a prompt.');
                 return;
@@ -60,6 +90,8 @@ export function activate(context: vscode.ExtensionContext) {
 
             try {
                 const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
+                debugLogger.appendLine(`Using configuration: ${JSON.stringify(config, null, 2)}`);
+
                 const prompt = await generatePrompt(selectedFiles, {
                     includeHidden: config.get('includeHidden') || false,
                     includeDirectories: config.get('includeDirectories') || false,
@@ -70,36 +102,31 @@ export function activate(context: vscode.ExtensionContext) {
 
                 if (outputOption.label === 'Show in Preview') {
                     PreviewPanel.createOrShow(context.extensionUri);
-                    // Wait a bit for the panel to be ready
                     await new Promise(resolve => setTimeout(resolve, 500));
                     PreviewPanel.currentPanel?.updateContent(prompt);
+                    debugLogger.appendLine('Displayed prompt in preview panel');
                 } else {
                     await vscode.env.clipboard.writeText(prompt);
                     vscode.window.showInformationMessage('Prompt copied to clipboard!');
+                    debugLogger.appendLine('Copied prompt to clipboard');
                 }
             } catch (error) {
+                debugLogger.appendLine(`Error generating prompt: ${error}`);
                 vscode.window.showErrorMessage(`Error generating prompt: ${error}`);
             }
         }
     );
 
-    // Register Generate Prompt Button Command
+    // Register other commands
     let generatePromptButtonCommand = vscode.commands.registerCommand(
         'files-to-llm-prompt.generatePromptButton',
         () => {
+            debugLogger.appendLine('Generate prompt button clicked');
             vscode.commands.executeCommand('files-to-llm-prompt.generatePrompt');
         }
     );
 
-    // Register Refresh Command
-    let refreshCommand = vscode.commands.registerCommand(
-        'files-to-llm-prompt.refreshFileExplorer',
-        () => {
-            fileExplorerProvider.refresh();
-        }
-    );
-
-    context.subscriptions.push(generatePromptCommand, generatePromptButtonCommand, refreshCommand);
+    context.subscriptions.push(generatePromptCommand, generatePromptButtonCommand);
 }
 
 export function deactivate() {}
