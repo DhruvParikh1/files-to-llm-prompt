@@ -7,6 +7,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     private selectedFiles: Set<string> = new Set();
     private allFiles: Set<string> = new Set();
+    private fileToDirectoryMap: Map<string, string> = new Map(); // Maps files to their parent directory
     private treeView?: vscode.TreeView<FileItem>;
 
     constructor(private context: vscode.ExtensionContext) {
@@ -19,39 +20,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
         // Create and store the TreeView
         this.treeView = vscode.window.createTreeView('files-to-llm-prompt-explorer', {
-            treeDataProvider: this,
-            canSelectMany: true
-        });
-
-        // Handle checkbox state changes
-        this.treeView.onDidChangeCheckboxState(async (e) => {
-            for (const [item, checkboxState] of e.items) {
-                if (item.resourceUri) {
-                    const filePath = item.resourceUri.fsPath;
-                    const statResult = await vscode.workspace.fs.stat(item.resourceUri);
-                    const isDirectory = statResult.type === vscode.FileType.Directory;
-
-                    if (checkboxState === vscode.TreeItemCheckboxState.Checked) {
-                        if (isDirectory) {
-                            const files = await this.getAllFilesInDirectory(item.resourceUri);
-                            files.forEach(file => this.selectedFiles.add(file));
-                        } else {
-                            this.selectedFiles.add(filePath);
-                        }
-                        console.log(`Selected: ${filePath}`);
-                    } else {
-                        if (isDirectory) {
-                            const files = await this.getAllFilesInDirectory(item.resourceUri);
-                            files.forEach(file => this.selectedFiles.delete(file));
-                        } else {
-                            this.selectedFiles.delete(filePath);
-                        }
-                        console.log(`Deselected: ${filePath}`);
-                    }
-                }
-            }
-            console.log('Current selected files:', this.selectedFiles);
-            this.refresh();
+            treeDataProvider: this
         });
 
         // Register select all command
@@ -91,7 +60,8 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                     folder.uri,
                     vscode.TreeItemCollapsibleState.Collapsed,
                     'workspace-folder',
-                    this.selectedFiles
+                    this.selectedFiles,
+                    this.isDirectorySelected.bind(this)
                 );
                 return item;
             });
@@ -113,19 +83,20 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                             uri,
                             collapsibleState,
                             type === vscode.FileType.Directory ? 'folder' : 'file',
-                            this.selectedFiles
+                            this.selectedFiles,
+                            this.isDirectorySelected.bind(this)
                         );
                         
-                        // Track files for select all functionality
+                        // Track files and their parent directories
                         if (type === vscode.FileType.File) {
                             this.allFiles.add(uri.fsPath);
+                            this.fileToDirectoryMap.set(uri.fsPath, element.resourceUri.fsPath);
                         }
 
                         return item;
                     })
             );
 
-            // Sort items: folders first, then files, both alphabetically
             return items.sort((a, b) => {
                 if (a.contextValue === b.contextValue) {
                     return a.label!.localeCompare(b.label!);
@@ -143,12 +114,10 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         const includeHidden = config.get<boolean>('includeHidden');
         const ignorePatterns = config.get<string[]>('ignorePatterns') || [];
         
-        // Check for hidden files/folders
         if (!includeHidden && name.startsWith('.')) {
             return false;
         }
 
-        // Check ignore patterns
         for (const pattern of ignorePatterns) {
             try {
                 if (new RegExp(pattern).test(name)) {
@@ -182,30 +151,42 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         return files;
     }
 
+    private isDirectorySelected(directoryPath: string): boolean {
+        // Get all files that are children of this directory
+        const childFiles = Array.from(this.allFiles)
+            .filter(filePath => this.fileToDirectoryMap.get(filePath) === directoryPath);
+        
+        // Directory is selected if it has files and all of them are selected
+        return childFiles.length > 0 && childFiles.every(file => this.selectedFiles.has(file));
+    }
+
     private async toggleFileSelection(filePath: string): Promise<void> {
         try {
             const uri = vscode.Uri.file(filePath);
             const statResult = await vscode.workspace.fs.stat(uri);
             const isDirectory = statResult.type === vscode.FileType.Directory;
             
-            const isCurrentlySelected = this.selectedFiles.has(filePath);
-            
             if (isDirectory) {
                 const files = await this.getAllFilesInDirectory(uri);
-                if (isCurrentlySelected) {
+                const allSelected = this.isDirectorySelected(filePath);
+                
+                if (allSelected) {
+                    // Deselect all files in directory
                     files.forEach(file => this.selectedFiles.delete(file));
                 } else {
+                    // Select all files in directory
                     files.forEach(file => this.selectedFiles.add(file));
                 }
             } else {
-                if (isCurrentlySelected) {
+                const isSelected = this.selectedFiles.has(filePath);
+                if (isSelected) {
                     this.selectedFiles.delete(filePath);
                 } else {
                     this.selectedFiles.add(filePath);
                 }
             }
             
-            console.log(`Toggled selection for ${filePath}. Currently selected files:`, this.selectedFiles);
+            console.log(`Toggled selection for ${filePath}. Currently selected files:`, Array.from(this.selectedFiles));
             this.refresh();
         } catch (error) {
             console.error(`Error toggling file selection: ${error}`);
@@ -228,7 +209,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
     }
 
     getSelectedFiles(): string[] {
-        console.log('Currently selected files:', this.selectedFiles);
+        console.log('Currently selected files:', Array.from(this.selectedFiles));
         return Array.from(this.selectedFiles);
     }
 }
@@ -239,36 +220,47 @@ class FileItem extends vscode.TreeItem {
         public readonly resourceUri: vscode.Uri,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
         public readonly contextValue: string,
-        private selectedFiles: Set<string>
+        private selectedFiles: Set<string>,
+        private isDirectorySelected: (dirPath: string) => boolean
     ) {
         super(label, collapsibleState);
         
         this.tooltip = this.label;
-        this.description = path.relative(
+        const relativePath = path.relative(
             vscode.workspace.workspaceFolders?.[0].uri.fsPath || '',
             resourceUri.fsPath
         );
+        
+        
 
-        // Add icon based on type
         if (contextValue === 'file') {
             this.iconPath = new vscode.ThemeIcon('file');
         } else if (contextValue === 'folder') {
             this.iconPath = new vscode.ThemeIcon('folder');
         }
         
-        // Initialize checkbox state based on selection
-        this.checkboxState = {
-            state: this.selectedFiles.has(resourceUri.fsPath)
-                ? vscode.TreeItemCheckboxState.Checked
-                : vscode.TreeItemCheckboxState.Unchecked,
-            tooltip: `Select ${contextValue === 'folder' ? 'all files in folder' : 'file'}`
-        };
-
         // Add command for item click
         this.command = {
             title: 'Toggle Selection',
             command: 'files-to-llm-prompt.toggleFile',
             arguments: [resourceUri.fsPath]
         };
+
+        // Only show checkbox if item is selected
+        const isSelected = contextValue === 'file' 
+            ? selectedFiles.has(resourceUri.fsPath)
+            : this.isDirectorySelected(resourceUri.fsPath);
+
+        if (isSelected) {
+            this.checkboxState = {
+                state: vscode.TreeItemCheckboxState.Checked,
+                tooltip: 'Selected (click name to deselect)'
+            };
+        }
+
+        this.description = isSelected 
+            ? `${relativePath} (Selected)` 
+            : relativePath;
+        // No else clause - we don't set checkboxState at all if not selected
     }
 }
