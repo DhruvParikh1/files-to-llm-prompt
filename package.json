@@ -4,17 +4,20 @@
   "description": "Concatenate files into prompts for LLMs. Optimized for Claude.",
   "icon": "icon.png",
   "version": "0.0.1",
+  "publisher": "DhrxvExtensions",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/repository.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/repository/issues"
+  },
+  "homepage": "https://github.com/username/repository#readme",
   "engines": {
     "vscode": "^1.96.0"
   },
   "categories": [
     "Other"
-  ],
-  "activationEvents": [
-    "onView:files-to-llm-prompt-explorer",
-    "onView:files-to-llm-prompt-settings",
-    "onCommand:files-to-llm-prompt.generatePrompt",
-    "onCommand:files-to-llm-prompt.openPreview"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -155,6 +158,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "files-to-llm-prompt": "file:",
     "glob": "^11.0.1",
     "lru-cache": "^11.0.2"
   }
