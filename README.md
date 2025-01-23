@@ -1,71 +1,85 @@
-# files-to-llm-prompt README
+# Files to LLM Prompt
 
-This is the README for your extension "files-to-llm-prompt". After writing up a brief description, we recommend including the following sections.
+Convert your workspace files into well-structured prompts for Large Language Models (LLMs), with special optimization for Claude's XML format.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Smart File Selection**: Interactive file explorer with checkbox selection
+- **Intelligent Filtering**:
+  - Honor .gitignore rules
+  - Filter hidden files
+  - Custom ignore patterns
+  - Directory-based filtering
+- **Flexible Output Formats**:
+  - Claude-optimized XML format
+  - Simple text format with clear file separators
+- **Preview & Copy**: Preview generated prompts or copy directly to clipboard
+- **Customizable Settings**: Comprehensive settings panel for fine-tuning behavior
 
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+![File Explorer and Settings](images/main-interface.png)
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+No additional requirements - works out of the box with VS Code 1.96.0 or higher.
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+* `files-to-llm-prompt.includeHidden`: Show files and folders that start with a dot (.)
+* `files-to-llm-prompt.overrideGitignore`: Show all files, including those listed in .gitignore files
+* `files-to-llm-prompt.includeDirectories`: Apply ignore patterns to folder names as well as file names
+* `files-to-llm-prompt.ignorePatterns`: Patterns for files and folders to hide from the explorer (e.g., *.log, node_modules)
+* `files-to-llm-prompt.outputFormat`: Choose between 'default' and 'claude-xml' output formats
+
+## Usage
+
+1. Click the Files to LLM Prompt icon in the activity bar
+2. Use the file explorer to select files you want to include
+3. Configure any filters or settings as needed
+4. Click the "Generate Prompt" button
+5. Choose to preview the result or copy directly to clipboard
+
+### Output Formats
+
+#### Claude XML Format
+```xml
+<documents>
+<document index="1">
+<source>path/to/file.js</source>
+<document_content>
+// File contents here
+</document_content>
+</document>
+</documents>
+```
+
+#### Default Format
+```
+path/to/file.js
+---
+// File contents here
+---
+```
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- Very large files may impact performance
+- Binary files are automatically excluded
+- Maximum file size limit is determined by VS Code's file reading capabilities
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1 - Initial Release
 
-### 1.0.0
+- File explorer with checkbox selection
+- Multiple output formats
+- Preview functionality
+- Configurable filtering options
+- Settings management panel
 
-Initial release of ...
+## Contributing
 
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+Found a bug or have a feature request? Please open an issue or submit a pull request on our [GitHub repository](https://github.com/DhruvParikh1/files-to-llm-prompt).
 
 ---
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**

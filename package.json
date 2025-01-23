@@ -154,7 +154,6 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "files-to-llm-prompt": "file:",
     "glob": "^11.0.1",
     "lru-cache": "^11.0.2",
     "mocha": "^11.1.0"
