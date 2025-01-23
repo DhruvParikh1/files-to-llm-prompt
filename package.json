@@ -7,12 +7,12 @@
   "publisher": "DhrxvExtensions",
   "repository": {
     "type": "git",
-    "url": "https://github.com/username/repository.git"
+    "url": "https://github.com/DhruvParikh1/files-to-llm-prompt"
   },
   "bugs": {
-    "url": "https://github.com/username/repository/issues"
+    "url": "https://github.com/DhruvParikh1/files-to-llm-prompt/issues"
   },
-  "homepage": "https://github.com/username/repository#readme",
+  "homepage": "https://github.com/DhruvParikh1/files-to-llm-prompt/blob/master/README.md",
   "engines": {
     "vscode": "^1.96.0"
   },
