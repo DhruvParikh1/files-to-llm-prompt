@@ -150,12 +150,12 @@
     "esbuild": "^0.24.0",
     "esbuild-plugin-copy": "^2.1.1",
     "eslint": "^9.16.0",
+    "mocha": "^11.1.0",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.7.2"
   },
   "dependencies": {
     "glob": "^11.0.1",
-    "lru-cache": "^11.0.2",
-    "mocha": "^11.1.0"
+    "lru-cache": "^11.0.2"
   }
 }

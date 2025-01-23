@@ -16,8 +16,6 @@ Convert your workspace files into well-structured prompts for Large Language Mod
 - **Preview & Copy**: Preview generated prompts or copy directly to clipboard
 - **Customizable Settings**: Comprehensive settings panel for fine-tuning behavior
 
-![File Explorer and Settings](images/main-interface.png)
-
 ## Requirements
 
 No additional requirements - works out of the box with VS Code 1.96.0 or higher.
