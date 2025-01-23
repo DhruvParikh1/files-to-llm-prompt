@@ -19,6 +19,12 @@
   "categories": [
     "Other"
   ],
+  "activationEvents": [
+    "onView:files-to-llm-prompt-explorer",
+    "onView:files-to-llm-prompt-settings",
+    "onCommand:files-to-llm-prompt.generatePrompt",
+    "onCommand:files-to-llm-prompt.openPreview"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
