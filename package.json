@@ -2,6 +2,7 @@
   "name": "files-to-llm-prompt",
   "displayName": "Files to LLM Prompt",
   "description": "Concatenate files into prompts for LLMs. Optimized for Claude.",
+  "icon": "icon.png",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.96.0"
@@ -153,6 +154,9 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "files-to-llm-prompt": "file:"
+    "files-to-llm-prompt": "file:",
+    "glob": "^11.0.1",
+    "lru-cache": "^11.0.2",
+    "mocha": "^11.1.0"
   }
 }
