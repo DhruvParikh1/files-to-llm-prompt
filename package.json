@@ -76,7 +76,7 @@
         {
           "id": "files-to-llm-prompt-sidebar",
           "title": "Files to LLM Prompt",
-          "icon": "$(file-text)"
+          "icon": "icon.png"
         }
       ]
     },
