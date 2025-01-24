@@ -2,7 +2,7 @@
   "name": "files-to-llm-prompt",
   "displayName": "Files to LLM Prompt",
   "description": "Concatenate files into prompts for LLMs. Optimized for Claude.",
-  "icon": "icon.png",
+  "icon": "logo.png",
   "version": "0.0.2",
   "publisher": "DhrxvExtensions",
   "repository": {
