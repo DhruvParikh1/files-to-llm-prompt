@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { PreviewPanel } from '../panels/PreviewPanel';
 
 export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined | null | void> = new vscode.EventEmitter<FileItem | undefined | null | void>();
@@ -288,6 +289,19 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         return childFiles.length > 0 && childFiles.every(file => this.selectedFiles.has(file));
     }
 
+    private notifyPreviewPanelOfChanges() {
+        console.log('Attempting to notify preview panel...');
+        console.log('Selected files:', Array.from(this.selectedFiles));
+        console.log('PreviewPanel exists?', !!PreviewPanel.currentPanel);
+        
+        if (PreviewPanel.currentPanel) {
+            PreviewPanel.currentPanel.updateFileList(Array.from(this.selectedFiles));
+            console.log('Successfully sent file list to preview panel');
+        } else {
+            console.log('Preview panel not initialized yet');
+        }
+    }
+    
     private async toggleFileSelection(filePath: string): Promise<void> {
         try {
             const uri = vscode.Uri.file(filePath);
@@ -314,6 +328,8 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             }
             
             this.refresh();
+            this.notifyPreviewPanelOfChanges(); // Add this line
+            
             const selectionCount = this.selectedFiles.size;
             const messageText = wasSelected ? 
                 `Deselected ${isDirectory ? 'directory' : 'file'}. Total files selected: ${selectionCount}` :
@@ -330,13 +346,15 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             this.selectedFiles.add(filePath);
         });
         this.refresh();
+        this.notifyPreviewPanelOfChanges(); // Add this line
         vscode.window.showInformationMessage(`Selected ${this.selectedFiles.size} files`);
     }
-
+    
     deselectAll(): void {
         const previousCount = this.selectedFiles.size;
         this.selectedFiles.clear();
         this.refresh();
+        this.notifyPreviewPanelOfChanges(); // Add this line
         vscode.window.showInformationMessage(`Deselected ${previousCount} files`);
     }
 

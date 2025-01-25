@@ -103,7 +103,13 @@ export function activate(context: vscode.ExtensionContext) {
                 if (outputOption.label === 'Show in Preview') {
                     PreviewPanel.createOrShow(context.extensionUri);
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    PreviewPanel.currentPanel?.updateContent(prompt);
+                    if (PreviewPanel.currentPanel) {
+                        PreviewPanel.currentPanel.updateFileList(selectedFiles);
+                        PreviewPanel.currentPanel.updateContent(prompt);
+                        console.log('Updated preview panel with content and file list');
+                    } else {
+                        console.log('Failed to initialize preview panel');
+                    }
                     debugLogger.appendLine('Displayed prompt in preview panel');
                 } else {
                     await vscode.env.clipboard.writeText(prompt);
