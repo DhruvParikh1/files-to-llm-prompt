@@ -4,7 +4,8 @@ export class PreviewPanel {
     public static currentPanel: PreviewPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
-    private _selectedFiles: string[] = [];
+    private _currentPreviewFiles: string[] = []; // Files used in current preview
+    private _selectedFiles: string[] = [];       // Currently selected files
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this._panel = panel;
@@ -37,20 +38,33 @@ export class PreviewPanel {
     }
 
     public updateContent(content: string) {
+        this._currentPreviewFiles = [...this._selectedFiles]; // Store files used for this preview
         this._panel.webview.postMessage({
             type: 'updatePreviewContent',
             content: content
         });
+        this.checkSyncStatus();
     }
-
+    
     public updateFileList(files: string[]) {
-        console.log('PreviewPanel received file list update:', files);
         this._selectedFiles = files;
         this._panel.webview.postMessage({
             type: 'updateFileList',
             files: files
         });
-        console.log('Sent file list to webview');
+        this.checkSyncStatus();
+    }
+    
+    private checkSyncStatus() {
+        const isInSync = 
+            this._currentPreviewFiles.length === this._selectedFiles.length &&
+            this._currentPreviewFiles.every(file => this._selectedFiles.includes(file)) &&
+            this._selectedFiles.every(file => this._currentPreviewFiles.includes(file));
+    
+        this._panel.webview.postMessage({
+            type: 'updateSyncStatus',
+            isInSync: isInSync
+        });
     }
 
     private _getWebviewContent(files: string[]) {
@@ -158,6 +172,24 @@ export class PreviewPanel {
                         color: var(--vscode-descriptionForeground);
                         margin-top: 5px;
                     }
+                    .warning-message {
+                        display: none;
+                        color: var(--vscode-editorWarning-foreground);
+                        font-size: 0.9em;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                        margin-left: 10px;
+                        align-items: center;
+                        background: var(--vscode-editorWarning-background, rgba(255, 180, 0, 0.1));
+                    }
+
+                    .warning-message.visible {
+                        display: flex;
+                    }
+
+                    .warning-icon {
+                        margin-right: 6px;
+                    }
                 </style>
             </head>
             <body>
@@ -170,6 +202,10 @@ export class PreviewPanel {
                     <div class="toolbar">
                         <button id="copyButton">Copy to Clipboard</button>
                         <button id="refreshButton">Refresh Preview</button>
+                        <div id="syncWarning" class="warning-message">
+                            <span class="warning-icon">⚠️</span>
+                            Preview is out of sync with selected files
+                        </div>
                     </div>
                     <div id="preview">Preview content will appear here...</div>
                 </div>
@@ -211,15 +247,21 @@ export class PreviewPanel {
                     // Handle messages from extension
                     window.addEventListener('message', event => {
                         const message = event.data;
-                        console.log('Webview received message:', message);
                         switch (message.type) {
                             case 'updatePreviewContent':
                                 preview.textContent = message.content;
                                 break;
                             case 'updateFileList':
-                                console.log('Updating file list with:', message.files);
                                 selectedFiles = message.files;
                                 renderFileList();
+                                break;
+                            case 'updateSyncStatus':
+                                const warningElement = document.getElementById('syncWarning');
+                                if (!message.isInSync) {
+                                    warningElement.classList.add('visible');
+                                } else {
+                                    warningElement.classList.remove('visible');
+                                }
                                 break;
                         }
                     });
