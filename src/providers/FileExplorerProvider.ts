@@ -3,9 +3,21 @@ import * as path from 'path';
 import { PreviewPanel } from '../panels/PreviewPanel';
 import { search } from 'fast-fuzzy';
 
+export interface ExcludedEntry {
+    path: string;
+    displayPath: string;
+    type: 'directory' | 'file';
+    pattern: string;
+    children?: ExcludedEntry[];
+}
+
 export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined | null | void> = new vscode.EventEmitter<FileItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<FileItem | undefined | null | void> = this._onDidChangeTreeData.event;
+
+    private excludedEntries: Map<string, ExcludedEntry> = new Map();
+    private _onDidUpdateExclusions: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+    readonly onDidUpdateExclusions: vscode.Event<void> = this._onDidUpdateExclusions.event;
 
     private selectedFiles: Set<string> = new Set();
     private allFiles: Set<string> = new Set();
@@ -24,6 +36,21 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                     this.debugLogger.appendLine('\n=== Configuration Changed ===');
                     const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
                     this.debugLogger.appendLine(`New config: ${JSON.stringify(config, null, 2)}`);
+                    this.refresh();
+                }
+            })
+        );
+
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(e => {
+                if (e.affectsConfiguration('files-to-llm-prompt')) {
+                    // Clear exclusions for any setting that affects file visibility
+                    if (e.affectsConfiguration('files-to-llm-prompt.includeHidden') ||
+                        e.affectsConfiguration('files-to-llm-prompt.ignorePatterns') ||
+                        e.affectsConfiguration('files-to-llm-prompt.includeDirectories') ||
+                        e.affectsConfiguration('files-to-llm-prompt.overrideGitignore')) {
+                        this.clearExclusions();
+                    }
                     this.refresh();
                 }
             })
@@ -57,6 +84,11 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         const initialConfig = vscode.workspace.getConfiguration('files-to-llm-prompt');
         this.debugLogger.appendLine('\n=== Initial Configuration ===');
         this.debugLogger.appendLine(`Config: ${JSON.stringify(initialConfig, null, 2)}`);
+    }
+
+    private clearExclusions(): void {
+        this.excludedEntries.clear();
+        this._onDidUpdateExclusions.fire();
     }
 
     public getAllFiles(): string[] {
@@ -164,13 +196,21 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         this.debugLogger.appendLine(`Include Directories: ${includeDirectories}`);
         this.debugLogger.appendLine(`Override Gitignore: ${overrideGitignore}`);
         this.debugLogger.appendLine(`Ignore Patterns: ${JSON.stringify(ignorePatterns)}`);
+    
+        const fullPath = path.join(parentUri.fsPath, name);
         
         // Check for hidden files/folders
         if (!includeHidden && name.startsWith('.')) {
             this.debugLogger.appendLine(`Excluded: Hidden file/folder`);
+            this.addExclusion({
+                path: fullPath,
+                displayPath: this.getDisplayPath(fullPath),
+                type: isDirectory ? 'directory' : 'file',
+                pattern: 'hidden'
+            });
             return false;
         }
-
+    
         // Handle directory filtering
         if (isDirectory) {
             this.debugLogger.appendLine(`Checking directory: ${name}`);
@@ -178,7 +218,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                 this.debugLogger.appendLine(`Directory filtering disabled - showing directory`);
                 return true;
             }
-
+    
             // If we get here, directory filtering is enabled
             this.debugLogger.appendLine(`Directory filtering enabled - checking patterns`);
             
@@ -190,6 +230,12 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                 this.debugLogger.appendLine(`Checking exact match with pattern: "${trimmed}"`);
                 if (name === trimmed) {
                     this.debugLogger.appendLine(`Directory "${name}" exactly matches pattern "${trimmed}" - excluding`);
+                    this.addExclusion({
+                        path: fullPath,
+                        displayPath: this.getDisplayPath(fullPath),
+                        type: 'directory',
+                        pattern: trimmed
+                    });
                     return false;
                 }
             }
@@ -199,27 +245,33 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             this.debugLogger.appendLine(`No exact directory matches - allowing directory to show contents`);
             return true;
         }
-
-        // Process ignore patterns
+    
+        // Process ignore patterns for files
         for (const pattern of ignorePatterns) {
             try {
                 // Skip empty patterns
                 if (!pattern.trim()) {
                     continue;
                 }
-
+    
                 this.debugLogger.appendLine(`\nChecking pattern: "${pattern}"`);
-
+    
                 // Special handling for simple directory/file names without glob patterns
                 if (!pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
                     this.debugLogger.appendLine(`Simple pattern match check: "${name}" === "${pattern}"`);
                     if (name === pattern) {
                         this.debugLogger.appendLine(`Excluded: Exact match with simple pattern`);
+                        this.addExclusion({
+                            path: fullPath,
+                            displayPath: this.getDisplayPath(fullPath),
+                            type: 'file',
+                            pattern: pattern
+                        });
                         return false;
                     }
                     continue;
                 }
-
+    
                 // Convert glob pattern to regex
                 const globToRegex = (glob: string): string => {
                     const processed = glob
@@ -234,26 +286,27 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                     this.debugLogger.appendLine(`Converted glob "${glob}" to regex: "${processed}"`);
                     return processed;
                 };
-
+    
                 const basePattern = globToRegex(pattern);
                 const regex = new RegExp(`(^|/)${basePattern}(/|$)`);
                 this.debugLogger.appendLine(`Final regex: ${regex}`);
-
+    
                 // Handle relative paths for better matching
                 const relativePath = path.relative(
                     vscode.workspace.workspaceFolders?.[0].uri.fsPath || '',
                     path.join(parentUri.fsPath, name)
                 ).replace(/\\/g, '/');
-
+    
                 this.debugLogger.appendLine(`Testing against relativePath: "${relativePath}"`);
                 
-                if (regex.test(name)) {
-                    this.debugLogger.appendLine(`Excluded: Pattern matched name`);
-                    return false;
-                }
-                
-                if (regex.test(relativePath)) {
-                    this.debugLogger.appendLine(`Excluded: Pattern matched relative path`);
+                if (regex.test(name) || regex.test(relativePath)) {
+                    this.debugLogger.appendLine(`Excluded: Pattern matched path`);
+                    this.addExclusion({
+                        path: fullPath,
+                        displayPath: this.getDisplayPath(fullPath),
+                        type: 'file',
+                        pattern: pattern
+                    });
                     return false;
                 }
             } catch (error) {
@@ -261,13 +314,41 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                 console.error(`Invalid ignore pattern: ${pattern}`, error);
             }
         }
-
+    
         if (!overrideGitignore) {
             // Add .gitignore checking logic here if needed
         }
         
         this.debugLogger.appendLine(`Included: Passed all checks`);
         return true;
+    }
+
+    private addExclusion(entry: ExcludedEntry): void {
+        // If it's a directory, check if we already have any children tracked
+        if (entry.type === 'directory') {
+            const existingChildren = Array.from(this.excludedEntries.values())
+                .filter(e => e.path.startsWith(entry.path + path.sep));
+            
+            if (existingChildren.length > 0) {
+                entry.children = existingChildren;
+                // Remove child entries as they're now under the parent
+                existingChildren.forEach(child => this.excludedEntries.delete(child.path));
+            }
+        }
+
+        this.excludedEntries.set(entry.path, entry);
+        this._onDidUpdateExclusions.fire();
+    }
+
+    private getDisplayPath(fullPath: string): string {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {return fullPath;}
+
+        return path.relative(workspaceFolder.uri.fsPath, fullPath);
+    }
+
+    public getExcludedEntries(): ExcludedEntry[] {
+        return Array.from(this.excludedEntries.values());
     }
 
     private async getAllFilesInDirectory(uri: vscode.Uri): Promise<string[]> {

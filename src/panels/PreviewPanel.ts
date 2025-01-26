@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ExcludedEntry } from '../providers/FileExplorerProvider';
 
 export class PreviewPanel {
     public static currentPanel: PreviewPanel | undefined;
@@ -223,6 +224,37 @@ export class PreviewPanel {
                     .remove-file:hover {
                         background: var(--vscode-button-hoverBackground);
                     }
+                    .excluded-container {
+                        margin-top: 20px;
+                        border-top: 1px solid var(--vscode-panel-border);
+                        padding-top: 10px;
+                    }
+                    .excluded-header {
+                        font-weight: bold;
+                        margin-bottom: 10px;
+                        padding: 5px;
+                        background: var(--vscode-editor-lineHighlightBackground);
+                        border-radius: 3px;
+                    }
+                    .excluded-list {
+                        font-family: var(--vscode-editor-font-family);
+                    }
+                    .excluded-item {
+                        padding: 4px 0;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .excluded-path {
+                        color: var(--vscode-foreground);
+                    }
+                    .excluded-pattern {
+                        font-size: 0.9em;
+                        color: var(--vscode-descriptionForeground);
+                        margin-left: 20px;
+                    }
+                    .excluded-directory {
+                        font-weight: bold;
+                    }
                     .preview-container {
                         display: flex;
                         flex-direction: column;
@@ -288,6 +320,12 @@ export class PreviewPanel {
                     <div class="file-list-header">Selected Files</div>
                     <div class="file-list" id="fileList"></div>
                     <div class="file-count" id="fileCount"></div>
+
+                    <!-- New excluded content section -->
+                    <div class="excluded-container">
+                        <div class="excluded-header">Excluded Content</div>
+                        <div class="excluded-list" id="excludedList"></div>
+                    </div>
                 </div>
                 <div class="preview-container">
                     <div class="toolbar">
@@ -350,6 +388,36 @@ export class PreviewPanel {
                         });
                     }
 
+                    function renderExcludedList(entries) {
+                        const excludedList = document.getElementById('excludedList');
+                        
+                        function renderEntry(entry, level = 0) {
+                            const indent = '  '.repeat(level);
+                            const itemClass = entry.type === 'directory' ? 'excluded-directory' : '';
+                            
+                            let html = \`
+                                <div class="excluded-item">
+                                    <div class="excluded-path \${itemClass}">
+                                        \${indent}\${entry.type === 'directory' ? '📁' : '📄'} \${entry.displayPath}
+                                    </div>
+                                    <div class="excluded-pattern">
+                                        \${indent}Pattern: \${entry.pattern}
+                                    </div>
+                                </div>
+                            \`;
+                            
+                            if (entry.children) {
+                                html += entry.children
+                                    .map(child => renderEntry(child, level + 1))
+                                    .join('');
+                            }
+                            
+                            return html;
+                        }
+                        
+                        excludedList.innerHTML = entries.map(entry => renderEntry(entry)).join('');
+                    }
+
                     // Handle messages from extension
                     window.addEventListener('message', event => {
                         const message = event.data;
@@ -364,6 +432,9 @@ export class PreviewPanel {
                             case 'updateAvailableFiles':
                                 debugLog(\`Received \${message.files.length} available files\`);
                                 availableFiles = message.files;
+                                break;
+                            case 'updateExcludedContent':
+                                renderExcludedList(message.entries);
                                 break;
                             case 'searchResults':
                                 const filteredFiles = message.files.filter(file => 
@@ -494,6 +565,13 @@ export class PreviewPanel {
                 </script>
             </body>
             </html>`;
+    }
+
+    public updateExcludedContent(entries: ExcludedEntry[]) {
+        this._panel.webview.postMessage({
+            type: 'updateExcludedContent',
+            entries: entries
+        });
     }
 
     private _setWebviewMessageListener(webview: vscode.Webview) {

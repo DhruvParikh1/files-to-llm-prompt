@@ -10,6 +10,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register File Explorer Provider
     const fileExplorerProvider = new FileExplorerProvider(context);
+
+    fileExplorerProvider.onDidUpdateExclusions(() => {
+        if (PreviewPanel.currentPanel) {
+            PreviewPanel.currentPanel.updateExcludedContent(
+                fileExplorerProvider.getExcludedEntries()
+            );
+        }
+    });
     
     // Register refresh command first
     let refreshCommand = vscode.commands.registerCommand(
