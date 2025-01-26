@@ -212,10 +212,10 @@ export class PreviewPanel {
                         <button id="refreshButton">Refresh Preview</button>
                         <div id="syncWarning" class="warning-message">
                             <span class="warning-icon">⚠️</span>
-                            Preview is out of sync with selected files
+                            Preview is out of sync with selected files. Click 'Refresh Preview' to update.
                         </div>
                     </div>
-                    <div id="preview">Preview content will appear here...</div>
+                    <div id="preview">Preview content will appear here... Select a file to continue...</div>
                 </div>
                 <script>
                     const vscode = acquireVsCodeApi();
