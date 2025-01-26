@@ -148,6 +148,16 @@ export class PreviewPanel {
                         white-space: nowrap;
                         margin-right: 8px;
                     }
+                        .search-match {
+                        background-color: var(--vscode-editor-findMatchHighlightBackground);
+                        border-radius: 2px;
+                    }
+                    
+                    .search-item-score {
+                        font-size: 0.8em;
+                        opacity: 0.7;
+                        margin-left: 8px;
+                    }
                     .add-file-btn {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
@@ -301,6 +311,17 @@ export class PreviewPanel {
                         fileCount.textContent = \`\${selectedFiles.length} file\${selectedFiles.length === 1 ? '' : 's'} selected\`;
                     }
 
+                    function highlightMatches(fileName, searchTerm) {
+                        if (!searchTerm) return fileName;
+                        
+                        // Simple highlighting strategy
+                        const escapedSearchTerm = searchTerm.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(escapedSearchTerm, 'gi');
+                        return fileName.replace(regex, match => 
+                            \`<span class="search-match">\${match}</span>\`
+                        );
+                    }
+
                     function formatFilePath(fullPath) {
                         const normalizedPath = fullPath.replace(/\\\\/g, '/');
                         const parts = normalizedPath.split('/');
@@ -351,13 +372,21 @@ export class PreviewPanel {
                                 debugLog('Received ' + filteredFiles.length + ' search results');
 
                                 if (filteredFiles.length > 0) {
+                                    const searchTerm = document.getElementById('fileSearch').value;
                                     searchResults.innerHTML = filteredFiles
-                                        .map(file => 
-                                            '<div class="search-item">' +
-                                                '<span class="search-item-name" title="' + file + '">' + formatFilePath(file) + '</span>' +
-                                                '<button class="add-file-btn" data-file="' + file + '">Add</button>' +
-                                            '</div>'
-                                        ).join('');
+                                        .map(file => {
+                                            const fileName = formatFilePath(file);
+                                            const highlightedName = highlightMatches(fileName, searchTerm);
+                                            
+                                            return \`
+                                                <div class="search-item">
+                                                    <span class="search-item-name" title="\${file}">
+                                                        \${highlightedName}
+                                                    </span>
+                                                    <button class="add-file-btn" data-file="\${file}">Add</button>
+                                                </div>
+                                            \`;
+                                        }).join('');
                                     searchResults.classList.add('visible');
                                 } else {
                                     searchResults.innerHTML = '<div class="search-item">No matches found</div>';

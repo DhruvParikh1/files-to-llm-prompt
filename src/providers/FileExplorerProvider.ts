@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { PreviewPanel } from '../panels/PreviewPanel';
+import { search } from 'fast-fuzzy';
 
 export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined | null | void> = new vscode.EventEmitter<FileItem | undefined | null | void>();
@@ -303,17 +304,47 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     public async searchWorkspaceFiles(searchTerm: string): Promise<string[]> {
         try {
-            // Use VSCode's workspace search
-            const results = await vscode.workspace.findFiles(
+            const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
+            const fuzzyThreshold = config.get<number>('fuzzySearchThreshold') || 0.6;
+
+            // If search term is empty, return recent files
+            if (!searchTerm.trim()) {
+                return Array.from(this.allFiles).slice(0, 10);
+            }
+
+            // First, get workspace-wide matches using VS Code search
+            const workspaceResults = await vscode.workspace.findFiles(
                 `**/${searchTerm}*`,
-                '**/node_modules/**', // You can adjust exclude patterns
-                10 // Limit results for performance
+                '**/node_modules/**',
+                20 // Increased limit slightly
             );
-            
-            // Add to our existing set and return results
-            results.forEach(uri => this.allFiles.add(uri.fsPath));
-            return results.map(uri => uri.fsPath);
+
+            // Add these to our allFiles set
+            workspaceResults.forEach(uri => this.allFiles.add(uri.fsPath));
+
+            // Get all available files including new ones
+            const allFiles = Array.from(this.allFiles);
+
+            // Prepare data for fuzzy search
+            const searchData = allFiles.map(filePath => ({
+                filePath,
+                searchString: path.basename(filePath)
+            }));
+
+            // Perform fuzzy search
+            const results = search(searchTerm, searchData, {
+                keySelector: (item: { filePath: string; searchString: string }) => item.searchString,
+                threshold: fuzzyThreshold,
+                returnMatchData: false
+            });
+
+            const matchedFiles = results.map(result => result.filePath);
+
+            this.debugLogger.appendLine(`Fuzzy search for "${searchTerm}" found ${matchedFiles.length} matches`);
+            return matchedFiles;
+
         } catch (error) {
+            this.debugLogger.appendLine(`Error in fuzzy search: ${error}`);
             console.error('Error searching workspace:', error);
             return [];
         }

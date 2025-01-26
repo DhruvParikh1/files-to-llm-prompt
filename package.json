@@ -131,6 +131,13 @@
           ],
           "default": "claude-xml",
           "description": "Format to use when generating the prompt output"
+        },
+        "files-to-llm-prompt.fuzzySearchThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.6,
+          "description": "Threshold for fuzzy search matching (0-1). Lower values return more matches."
         }
       }
     }
@@ -165,6 +172,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "fast-fuzzy": "^1.12.0",
     "files-to-llm-prompt": "file:",
     "glob": "^11.0.1",
     "lru-cache": "^11.0.2"
