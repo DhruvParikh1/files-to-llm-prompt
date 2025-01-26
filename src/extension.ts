@@ -23,12 +23,25 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(refreshCommand);
 
     // Register tree view
+    const treeView = vscode.window.createTreeView('files-to-llm-prompt-explorer', {
+        treeDataProvider: fileExplorerProvider
+    });
+
+    // ADDED: Listen for tree view visibility changes
     context.subscriptions.push(
-        vscode.window.registerTreeDataProvider(
-            'files-to-llm-prompt-explorer',
-            fileExplorerProvider
-        )
+        treeView.onDidChangeVisibility(e => {
+            if (e.visible) {
+                debugLogger.appendLine('Tree view became visible - showing preview panel');
+                PreviewPanel.createOrShow(context.extensionUri);
+            }
+        })
     );
+
+    // ADDED: If the tree view is already visible when the extension loads, show the preview panel
+    if (treeView.visible) {
+        debugLogger.appendLine('Tree view is initially visible - showing preview panel');
+        PreviewPanel.createOrShow(context.extensionUri);
+    }
 
     // Register Settings Provider
     const settingsProvider = new SettingsProvider();
@@ -75,19 +88,6 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            // Show quick pick for output options
-            const outputOption = await vscode.window.showQuickPick(
-                [
-                    { label: 'Show in Preview', description: 'Open the prompt in a preview window' },
-                    { label: 'Copy to Clipboard', description: 'Copy the prompt to clipboard' }
-                ],
-                { placeHolder: 'How would you like to output the prompt?' }
-            );
-
-            if (!outputOption) {
-                return;
-            }
-
             try {
                 const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
                 debugLogger.appendLine(`Using configuration: ${JSON.stringify(config, null, 2)}`);
@@ -100,21 +100,15 @@ export function activate(context: vscode.ExtensionContext) {
                     outputFormat: config.get('outputFormat') || 'claude-xml'
                 });
 
-                if (outputOption.label === 'Show in Preview') {
-                    PreviewPanel.createOrShow(context.extensionUri);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    if (PreviewPanel.currentPanel) {
-                        PreviewPanel.currentPanel.updateFileList(selectedFiles);
-                        PreviewPanel.currentPanel.updateContent(prompt);
-                        console.log('Updated preview panel with content and file list');
-                    } else {
-                        console.log('Failed to initialize preview panel');
-                    }
-                    debugLogger.appendLine('Displayed prompt in preview panel');
+                // Ensure preview panel is visible and update it
+                PreviewPanel.createOrShow(context.extensionUri);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                if (PreviewPanel.currentPanel) {
+                    PreviewPanel.currentPanel.updateFileList(selectedFiles);
+                    PreviewPanel.currentPanel.updateContent(prompt);
+                    debugLogger.appendLine('Updated preview panel with content and file list');
                 } else {
-                    await vscode.env.clipboard.writeText(prompt);
-                    vscode.window.showInformationMessage('Prompt copied to clipboard!');
-                    debugLogger.appendLine('Copied prompt to clipboard');
+                    debugLogger.appendLine('Failed to initialize preview panel');
                 }
             } catch (error) {
                 debugLogger.appendLine(`Error generating prompt: ${error}`);

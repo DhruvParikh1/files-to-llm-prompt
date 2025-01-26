@@ -20,6 +20,7 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onView:files-to-llm-prompt-explorer",
     "onView:files-to-llm-prompt-settings",
     "onCommand:files-to-llm-prompt.generatePrompt",
