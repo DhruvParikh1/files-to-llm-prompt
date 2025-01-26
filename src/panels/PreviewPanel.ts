@@ -111,29 +111,37 @@ export class PreviewPanel {
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
-                        padding: 5px;
+                        padding: 5px 8px;
                         margin: 2px 0;
                         border-radius: 3px;
-                    }
-                    .file-item:hover {
                         background: var(--vscode-list-hoverBackground);
                     }
+
+                    .file-item:hover {
+                        background: var(--vscode-list-activeSelectionBackground);
+                    }
+
                     .file-name {
                         flex: 1;
                         overflow: hidden;
                         text-overflow: ellipsis;
                         white-space: nowrap;
                         margin-right: 8px;
+                        font-family: var(--vscode-editor-font-family);
+                        color: var(--vscode-foreground);
                     }
+
                     .remove-file {
+                        flex-shrink: 0;
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
                         border: none;
-                        padding: 2px 6px;
+                        padding: 2px 8px;
                         border-radius: 3px;
                         cursor: pointer;
-                        font-size: 0.8em;
+                        font-size: 0.9em;
                     }
+
                     .remove-file:hover {
                         background: var(--vscode-button-hoverBackground);
                     }
@@ -220,15 +228,26 @@ export class PreviewPanel {
                         fileCount.textContent = \`\${selectedFiles.length} file\${selectedFiles.length === 1 ? '' : 's'} selected\`;
                     }
 
+                    function formatFilePath(fullPath) {
+                        // First, normalize the path by replacing backslashes
+                        const normalizedPath = fullPath.replace(/\\\\/g, '/');
+                        
+                        // Split on forward slashes
+                        const parts = normalizedPath.split('/');
+
+                        // Get the filename (last part)
+                        const fileName = parts[parts.length - 1];
+                        
+                        return '.../' + fileName;
+                    }
+
                     function renderFileList() {
                         fileList.innerHTML = selectedFiles.map(file => {
-                            const fileName = file.split('/').pop();
-                            return \`
-                                <div class="file-item">
-                                    <span class="file-name" title="\${file}">\${fileName}</span>
-                                    <button class="remove-file" data-file="\${file}">Remove</button>
-                                </div>
-                            \`;
+                            const formattedPath = formatFilePath(file);
+                            return '<div class="file-item">' +
+                                '<span class="file-name" title="' + file + '">' + formattedPath + '</span>' +
+                                '<button class="remove-file" data-file="' + file + '">Remove</button>' +
+                                '</div>';
                         }).join('');
                         updateFileCountDisplay();
 
