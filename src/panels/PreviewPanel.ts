@@ -98,6 +98,7 @@ export class PreviewPanel {
                     .search-container {
                         position: relative;
                         margin-bottom: 10px;
+                        width: 90%;
                     }
                     .search-input {
                         width: 100%;
@@ -170,10 +171,16 @@ export class PreviewPanel {
                     .add-file-btn:hover {
                         background: var(--vscode-button-hoverBackground);
                     }
+                    .selected-files-section {
+                        display: flex;
+                        flex-direction: column;
+                        height: 50%;
+                        min-height: 0; /* Important for proper flex behavior */
+                    }
                     .file-list-container {
                         border: 1px solid var(--vscode-panel-border);
                         border-radius: 4px;
-                        padding: 10px;
+                        padding: 16px;
                         display: flex;
                         flex-direction: column;
                         height: calc(100vh - 40px);
@@ -189,6 +196,7 @@ export class PreviewPanel {
                         flex: 1;
                         overflow-y: auto;
                         margin-bottom: 10px;
+                        min-height: 0; /* Important for proper flex behavior */
                     }
                     .file-item {
                         display: flex;
@@ -228,6 +236,10 @@ export class PreviewPanel {
                         margin-top: 20px;
                         border-top: 1px solid var(--vscode-panel-border);
                         padding-top: 10px;
+                        display: flex;
+                        flex-direction: column;
+                        height: 50%;
+                        min-height: 0; /* Important for proper flex behavior */
                     }
                     .excluded-header {
                         font-weight: bold;
@@ -238,6 +250,9 @@ export class PreviewPanel {
                     }
                     .excluded-list {
                         font-family: var(--vscode-editor-font-family);
+                        overflow-y: auto;
+                        flex: 1;
+                        min-height: 0; /* Important for proper flex behavior */
                     }
                     .excluded-item {
                         padding: 4px 0;
@@ -310,18 +325,19 @@ export class PreviewPanel {
             </head>
             <body>
                 <div class="file-list-container">
-                    <div class="search-container">
-                        <input type="text" 
-                               class="search-input" 
-                               id="fileSearch" 
-                               placeholder="Search for files...">
-                        <div class="search-results" id="searchResults"></div>
+                    <div class="selected-files-section">
+                        <div class="search-container">
+                            <input type="text" 
+                                class="search-input" 
+                                id="fileSearch" 
+                                placeholder="Search for files...">
+                            <div class="search-results" id="searchResults"></div>
+                        </div>
+                        <div class="file-list-header">Selected Files</div>
+                        <div class="file-list" id="fileList"></div>
+                        <div class="file-count" id="fileCount"></div>
                     </div>
-                    <div class="file-list-header">Selected Files</div>
-                    <div class="file-list" id="fileList"></div>
-                    <div class="file-count" id="fileCount"></div>
 
-                    <!-- New excluded content section -->
                     <div class="excluded-container">
                         <div class="excluded-header">Excluded Content</div>
                         <div class="excluded-list" id="excludedList"></div>
