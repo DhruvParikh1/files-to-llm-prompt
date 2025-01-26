@@ -27,6 +27,10 @@ export function activate(context: vscode.ExtensionContext) {
         treeDataProvider: fileExplorerProvider
     });
 
+    if (PreviewPanel.currentPanel) {
+        PreviewPanel.currentPanel.updateAvailableFiles(fileExplorerProvider.getAllFiles());
+    }
+
     // ADDED: Listen for tree view visibility changes
     context.subscriptions.push(
         treeView.onDidChangeVisibility(e => {

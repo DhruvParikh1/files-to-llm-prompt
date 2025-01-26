@@ -58,8 +58,17 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         this.debugLogger.appendLine(`Config: ${JSON.stringify(initialConfig, null, 2)}`);
     }
 
+    public getAllFiles(): string[] {
+        return Array.from(this.allFiles);
+    }
+
     refresh(): void {
         this._onDidChangeTreeData.fire();
+
+        // Update preview panel with available files if it exists
+        if (PreviewPanel.currentPanel) {
+            PreviewPanel.currentPanel.updateAvailableFiles(this.getAllFiles());
+        }
     }
 
     getTreeItem(element: FileItem): vscode.TreeItem {
@@ -90,7 +99,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             const items = await Promise.all(
                 children
                     .filter(([name, type]) => {
-                        // Apply filters before showing items in the tree
                         if (!this.shouldInclude(name, type === vscode.FileType.Directory, element.resourceUri)) {
                             return false;
                         }
@@ -112,7 +120,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                         );
                         
                         if (type === vscode.FileType.File) {
-                            // Only add to allFiles if it passes the filters
                             const shouldAdd = this.shouldInclude(name, false, element.resourceUri);
                             if (shouldAdd) {
                                 this.allFiles.add(uri.fsPath);
@@ -123,6 +130,11 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                         return item;
                     })
             );
+
+            // After processing all children, update PreviewPanel
+            if (PreviewPanel.currentPanel) {
+                PreviewPanel.currentPanel.updateAvailableFiles(this.getAllFiles());
+            }
 
             return items.sort((a, b) => {
                 if (a.contextValue === b.contextValue) {
@@ -291,11 +303,9 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     private notifyPreviewPanelOfChanges() {
         console.log('Attempting to notify preview panel...');
-        console.log('Selected files:', Array.from(this.selectedFiles));
-        console.log('PreviewPanel exists?', !!PreviewPanel.currentPanel);
-        
         if (PreviewPanel.currentPanel) {
             PreviewPanel.currentPanel.updateFileList(Array.from(this.selectedFiles));
+            PreviewPanel.currentPanel.updateAvailableFiles(this.getAllFiles());
             console.log('Successfully sent file list to preview panel');
         } else {
             console.log('Preview panel not initialized yet');

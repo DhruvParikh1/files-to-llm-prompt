@@ -38,7 +38,7 @@ export class PreviewPanel {
     }
 
     public updateContent(content: string) {
-        this._currentPreviewFiles = [...this._selectedFiles]; // Store files used for this preview
+        this._currentPreviewFiles = [...this._selectedFiles];
         this._panel.webview.postMessage({
             type: 'updatePreviewContent',
             content: content
@@ -53,6 +53,13 @@ export class PreviewPanel {
             files: files
         });
         this.checkSyncStatus();
+    }
+
+    public updateAvailableFiles(files: string[]) {
+        this._panel.webview.postMessage({
+            type: 'updateAvailableFiles',
+            files: files
+        });
     }
     
     private checkSyncStatus() {
@@ -87,6 +94,71 @@ export class PreviewPanel {
                         margin: 0;
                         box-sizing: border-box;
                     }
+                    .search-container {
+                        position: relative;
+                        margin-bottom: 10px;
+                    }
+                    .search-input {
+                        width: 100%;
+                        padding: 6px 8px;
+                        border: 1px solid var(--vscode-input-border);
+                        background: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        border-radius: 4px;
+                        outline: none;
+                        font-family: var(--vscode-font-family);
+                    }
+                    .search-input:focus {
+                        border-color: var(--vscode-focusBorder);
+                    }
+                    .search-results {
+                        display: none;
+                        position: absolute;
+                        top: 100%;
+                        left: 0;
+                        right: 0;
+                        background: var(--vscode-dropdown-background);
+                        border: 1px solid var(--vscode-dropdown-border);
+                        border-radius: 4px;
+                        max-height: 200px;
+                        overflow-y: auto;
+                        z-index: 1000;
+                    }
+                    .search-results.visible {
+                        display: block;
+                    }
+                    .search-item {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 6px 8px;
+                        cursor: pointer;
+                        border-bottom: 1px solid var(--vscode-dropdown-border);
+                    }
+                    .search-item:last-child {
+                        border-bottom: none;
+                    }
+                    .search-item:hover {
+                        background: var(--vscode-list-hoverBackground);
+                    }
+                    .search-item-name {
+                        flex: 1;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        margin-right: 8px;
+                    }
+                    .add-file-btn {
+                        background: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        border: none;
+                        padding: 2px 8px;
+                        border-radius: 3px;
+                        cursor: pointer;
+                    }
+                    .add-file-btn:hover {
+                        background: var(--vscode-button-hoverBackground);
+                    }
                     .file-list-container {
                         border: 1px solid var(--vscode-panel-border);
                         border-radius: 4px;
@@ -116,11 +188,9 @@ export class PreviewPanel {
                         border-radius: 3px;
                         background: var(--vscode-list-hoverBackground);
                     }
-
                     .file-item:hover {
                         background: var(--vscode-list-activeSelectionBackground);
                     }
-
                     .file-name {
                         flex: 1;
                         overflow: hidden;
@@ -130,7 +200,6 @@ export class PreviewPanel {
                         font-family: var(--vscode-editor-font-family);
                         color: var(--vscode-foreground);
                     }
-
                     .remove-file {
                         flex-shrink: 0;
                         background: var(--vscode-button-background);
@@ -141,7 +210,6 @@ export class PreviewPanel {
                         cursor: pointer;
                         font-size: 0.9em;
                     }
-
                     .remove-file:hover {
                         background: var(--vscode-button-hoverBackground);
                     }
@@ -190,11 +258,9 @@ export class PreviewPanel {
                         align-items: center;
                         background: var(--vscode-editorWarning-background, rgba(255, 180, 0, 0.1));
                     }
-
                     .warning-message.visible {
                         display: flex;
                     }
-
                     .warning-icon {
                         margin-right: 6px;
                     }
@@ -202,6 +268,13 @@ export class PreviewPanel {
             </head>
             <body>
                 <div class="file-list-container">
+                    <div class="search-container">
+                        <input type="text" 
+                               class="search-input" 
+                               id="fileSearch" 
+                               placeholder="Search for files...">
+                        <div class="search-results" id="searchResults"></div>
+                    </div>
                     <div class="file-list-header">Selected Files</div>
                     <div class="file-list" id="fileList"></div>
                     <div class="file-count" id="fileCount"></div>
@@ -229,15 +302,9 @@ export class PreviewPanel {
                     }
 
                     function formatFilePath(fullPath) {
-                        // First, normalize the path by replacing backslashes
                         const normalizedPath = fullPath.replace(/\\\\/g, '/');
-                        
-                        // Split on forward slashes
                         const parts = normalizedPath.split('/');
-
-                        // Get the filename (last part)
                         const fileName = parts[parts.length - 1];
-                        
                         return '.../' + fileName;
                     }
 
@@ -251,7 +318,6 @@ export class PreviewPanel {
                         }).join('');
                         updateFileCountDisplay();
 
-                        // Add event listeners to remove buttons
                         document.querySelectorAll('.remove-file').forEach(button => {
                             button.addEventListener('click', (e) => {
                                 const file = e.target.dataset.file;
@@ -273,6 +339,10 @@ export class PreviewPanel {
                             case 'updateFileList':
                                 selectedFiles = message.files;
                                 renderFileList();
+                                break;
+                            case 'updateAvailableFiles':
+                                debugLog(\`Received \${message.files.length} available files\`);
+                                availableFiles = message.files;
                                 break;
                             case 'updateSyncStatus':
                                 const warningElement = document.getElementById('syncWarning');
@@ -301,6 +371,89 @@ export class PreviewPanel {
                         vscode.postMessage({ type: 'refresh' });
                     });
 
+                    // Search functionality
+                    const searchInput = document.getElementById('fileSearch');
+                    const searchResults = document.getElementById('searchResults');
+                    let availableFiles = []; // Will be populated from extension
+
+                    // Debug logging function
+                    function debugLog(message) {
+                        vscode.postMessage({ 
+                            type: 'debug', 
+                            message: \`Search Debug: \${message}\` 
+                        });
+                    }
+
+                    function updateSearchResults(searchTerm) {
+                        debugLog(\`Searching for: \${searchTerm}\`);
+                        if (!searchTerm.trim()) {
+                            searchResults.classList.remove('visible');
+                            return;
+                        }
+                            const filteredFiles = availableFiles.filter(file => {
+                            const fileName = file.toLowerCase();
+                            return fileName.includes(searchTerm.toLowerCase()) && 
+                                   !selectedFiles.includes(file);
+                        });
+
+                        debugLog('Found ' + filteredFiles.length + ' matches');
+
+                        if (filteredFiles.length > 0) {
+                            searchResults.innerHTML = filteredFiles
+                                .slice(0, 10) // Limit to 10 results
+                                .map(function(file) {
+                                    return '<div class="search-item">' +
+                                        '<span class="search-item-name" title="' + file + '">' + formatFilePath(file) + '</span>' +
+                                        '<button class="add-file-btn" data-file="' + file + '">Add</button>' +
+                                    '</div>';
+                                }).join('');
+                            searchResults.classList.add('visible');
+                        } else {
+                            searchResults.innerHTML = '<div class="search-item">No matches found</div>';
+                            searchResults.classList.add('visible');
+                        }
+                    }
+
+                    // Handle search input
+                    let debounceTimeout;
+                    searchInput.addEventListener('input', (e) => {
+                        debugLog('Search input changed');
+                        clearTimeout(debounceTimeout);
+                        debounceTimeout = setTimeout(() => {
+                            updateSearchResults(e.target.value);
+                        }, 300);
+                    });
+
+                    // Handle clicking outside of search results
+                    document.addEventListener('click', (e) => {
+                        if (!searchResults.contains(e.target) && 
+                            e.target !== searchInput) {
+                            searchResults.classList.remove('visible');
+                        }
+                    });
+
+                    // Handle search result clicks
+                    searchResults.addEventListener('click', (e) => {
+                        const addButton = e.target.closest('.add-file-btn');
+                        if (addButton) {
+                            const file = addButton.dataset.file;
+                            debugLog('Adding file: ' + file);
+                            vscode.postMessage({ 
+                                type: 'addFile', 
+                                file: file 
+                            });
+                            searchInput.value = '';
+                            searchResults.classList.remove('visible');
+                        }
+                    });
+
+                    // Focus handling
+                    searchInput.addEventListener('focus', () => {
+                        if (searchInput.value.trim()) {
+                            updateSearchResults(searchInput.value);
+                        }
+                    });
+
                     // Initial render
                     renderFileList();
                 </script>
@@ -318,10 +471,16 @@ export class PreviewPanel {
                     case 'error':
                         vscode.window.showErrorMessage(message.message);
                         break;
+                    case 'debug':
+                        console.log(message.message); // For debugging search functionality
+                        break;
                     case 'refresh':
                         vscode.commands.executeCommand('files-to-llm-prompt.generatePrompt');
                         break;
                     case 'removeFile':
+                        vscode.commands.executeCommand('files-to-llm-prompt.toggleFile', message.file);
+                        break;
+                    case 'addFile':
                         vscode.commands.executeCommand('files-to-llm-prompt.toggleFile', message.file);
                         break;
                 }
