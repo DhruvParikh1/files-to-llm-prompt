@@ -22,6 +22,12 @@ export function activate(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(refreshCommand);
 
+    context.subscriptions.push(
+        vscode.commands.registerCommand('files-to-llm-prompt.searchFiles', 
+            (searchTerm: string) => fileExplorerProvider.searchWorkspaceFiles(searchTerm)
+        )
+    );
+
     // Register tree view
     const treeView = vscode.window.createTreeView('files-to-llm-prompt-explorer', {
         treeDataProvider: fileExplorerProvider

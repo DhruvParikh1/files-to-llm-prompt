@@ -301,6 +301,24 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         return childFiles.length > 0 && childFiles.every(file => this.selectedFiles.has(file));
     }
 
+    public async searchWorkspaceFiles(searchTerm: string): Promise<string[]> {
+        try {
+            // Use VSCode's workspace search
+            const results = await vscode.workspace.findFiles(
+                `**/${searchTerm}*`,
+                '**/node_modules/**', // You can adjust exclude patterns
+                10 // Limit results for performance
+            );
+            
+            // Add to our existing set and return results
+            results.forEach(uri => this.allFiles.add(uri.fsPath));
+            return results.map(uri => uri.fsPath);
+        } catch (error) {
+            console.error('Error searching workspace:', error);
+            return [];
+        }
+    }
+
     private notifyPreviewPanelOfChanges() {
         console.log('Attempting to notify preview panel...');
         if (PreviewPanel.currentPanel) {

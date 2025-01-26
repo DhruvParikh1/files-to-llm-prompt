@@ -344,6 +344,26 @@ export class PreviewPanel {
                                 debugLog(\`Received \${message.files.length} available files\`);
                                 availableFiles = message.files;
                                 break;
+                            case 'searchResults':
+                                const filteredFiles = message.files.filter(file => 
+                                    !selectedFiles.includes(file)
+                                );
+                                debugLog('Received ' + filteredFiles.length + ' search results');
+
+                                if (filteredFiles.length > 0) {
+                                    searchResults.innerHTML = filteredFiles
+                                        .map(file => 
+                                            '<div class="search-item">' +
+                                                '<span class="search-item-name" title="' + file + '">' + formatFilePath(file) + '</span>' +
+                                                '<button class="add-file-btn" data-file="' + file + '">Add</button>' +
+                                            '</div>'
+                                        ).join('');
+                                    searchResults.classList.add('visible');
+                                } else {
+                                    searchResults.innerHTML = '<div class="search-item">No matches found</div>';
+                                    searchResults.classList.add('visible');
+                                }
+                                break;
                             case 'updateSyncStatus':
                                 const warningElement = document.getElementById('syncWarning');
                                 if (!message.isInSync) {
@@ -384,33 +404,19 @@ export class PreviewPanel {
                         });
                     }
 
-                    function updateSearchResults(searchTerm) {
-                        debugLog(\`Searching for: \${searchTerm}\`);
+                    async function updateSearchResults(searchTerm) {
                         if (!searchTerm.trim()) {
                             searchResults.classList.remove('visible');
                             return;
                         }
-                            const filteredFiles = availableFiles.filter(file => {
-                            const fileName = file.toLowerCase();
-                            return fileName.includes(searchTerm.toLowerCase()) && 
-                                   !selectedFiles.includes(file);
-                        });
 
-                        debugLog('Found ' + filteredFiles.length + ' matches');
-
-                        if (filteredFiles.length > 0) {
-                            searchResults.innerHTML = filteredFiles
-                                .slice(0, 10) // Limit to 10 results
-                                .map(function(file) {
-                                    return '<div class="search-item">' +
-                                        '<span class="search-item-name" title="' + file + '">' + formatFilePath(file) + '</span>' +
-                                        '<button class="add-file-btn" data-file="' + file + '">Add</button>' +
-                                    '</div>';
-                                }).join('');
-                            searchResults.classList.add('visible');
-                        } else {
-                            searchResults.innerHTML = '<div class="search-item">No matches found</div>';
-                            searchResults.classList.add('visible');
+                        try {
+                            // Request search from extension
+                            vscode.postMessage({ 
+                                type: 'searchFiles', 
+                                searchTerm: searchTerm 
+                            });
+                        } catch (error) {
                         }
                     }
 
@@ -482,6 +488,16 @@ export class PreviewPanel {
                         break;
                     case 'addFile':
                         vscode.commands.executeCommand('files-to-llm-prompt.toggleFile', message.file);
+                        break;
+                    case 'searchFiles':
+                        const files = await vscode.commands.executeCommand(
+                            'files-to-llm-prompt.searchFiles',
+                            message.searchTerm
+                        );
+                        webview.postMessage({
+                            type: 'searchResults',
+                            files: files
+                        });
                         break;
                 }
             },
