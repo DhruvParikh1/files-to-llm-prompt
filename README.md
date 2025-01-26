@@ -4,21 +4,40 @@ Convert your workspace files into well-structured prompts for Large Language Mod
 
 ## Features
 
-- **Smart File Selection**: Interactive file explorer with checkbox selection
-- **Intelligent Filtering**:
+- **Advanced File Selection**:
+  - Interactive file explorer with checkbox selection
+  - Fuzzy search functionality for quick file finding
+  - Bulk selection/deselection options
+  - Directory-based selection
+
+- **Smart Filtering**:
   - Honor .gitignore rules
   - Filter hidden files
-  - Custom ignore patterns
+  - Custom ignore patterns with glob support
   - Directory-based filtering
-- **Flexible Output Formats**:
+  - Visual tracking of excluded content
+
+- **Enhanced Preview System**:
+  - Split-view interface with file list and preview
+  - Real-time sync status indicators
+  - One-click copy to clipboard
+  - Excluded files visibility
+  - File count tracking
+
+- **Output Formats**:
   - Claude-optimized XML format
   - Simple text format with clear file separators
-- **Preview & Copy**: Preview generated prompts or copy directly to clipboard
-- **Customizable Settings**: Comprehensive settings panel for fine-tuning behavior
+
+- **Comprehensive Settings**:
+  - Visual settings panel
+  - Real-time configuration updates
+  - Customizable search behavior
+  - Flexible ignore patterns
 
 ## Requirements
 
-No additional requirements - works out of the box with VS Code 1.96.0 or higher.
+- VS Code 1.96.0 or higher
+- No additional dependencies required
 
 ## Extension Settings
 
@@ -29,14 +48,37 @@ This extension contributes the following settings:
 * `files-to-llm-prompt.includeDirectories`: Apply ignore patterns to folder names as well as file names
 * `files-to-llm-prompt.ignorePatterns`: Patterns for files and folders to hide from the explorer (e.g., *.log, node_modules)
 * `files-to-llm-prompt.outputFormat`: Choose between 'default' and 'claude-xml' output formats
+* `files-to-llm-prompt.fuzzySearchThreshold`: Adjust the sensitivity of fuzzy search (0-1, default: 0.6)
 
 ## Usage
 
-1. Click the Files to LLM Prompt icon in the activity bar
-2. Use the file explorer to select files you want to include
-3. Configure any filters or settings as needed
-4. Click the "Generate Prompt" button
-5. Choose to preview the result or copy directly to clipboard
+1. Open the Files to LLM Prompt sidebar (click the icon in the activity bar)
+2. Use the file explorer to select files:
+   - Click files/folders to toggle selection
+   - Use the search bar to quickly find files
+   - Use bulk selection buttons in the title bar
+3. Configure settings in the Settings panel below the file explorer
+4. Click "Generate Prompt" (available in multiple locations):
+   - Status bar
+   - Title bar
+   - Preview panel
+5. Preview the generated prompt and copy to clipboard when ready
+
+### Search Functionality
+
+- Use the search bar in the preview panel to quickly find files
+- Fuzzy matching helps find files even with partial or imperfect matches
+- Real-time search results with highlighted matches
+- Quick add buttons for search results
+
+### Preview Panel Features
+
+- Split view showing both selected files and preview
+- Sync status indicator when changes are pending
+- List of excluded files/folders with pattern information
+- File count display
+- One-click copy to clipboard
+- Refresh button to update preview
 
 ### Output Formats
 
@@ -60,6 +102,13 @@ path/to/file.js
 ---
 ```
 
+## Performance Considerations
+
+- Fuzzy search is optimized with debouncing
+- Real-time preview updates
+- Efficient file filtering system
+- Handles workspace changes gracefully
+
 ## Known Issues
 
 - Very large files may impact performance
@@ -68,13 +117,23 @@ path/to/file.js
 
 ## Release Notes
 
+### 0.0.5 - Current Release
+
+- Added fuzzy search functionality
+- Enhanced preview panel with sync status
+- Added excluded files visibility
+- Improved file selection UI
+- Added file count display
+- Real-time search results
+- Performance optimizations
+
 ### 0.0.1 - Initial Release
 
-- File explorer with checkbox selection
+- Basic file explorer with checkbox selection
 - Multiple output formats
-- Preview functionality
-- Configurable filtering options
-- Settings management panel
+- Simple preview functionality
+- Basic filtering options
+- Settings panel
 
 ## Contributing
 
