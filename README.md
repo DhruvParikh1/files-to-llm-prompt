@@ -2,7 +2,7 @@
 
 Convert your workspace files into well-structured prompts for Large Language Models (LLMs), with special optimization for Claude's XML format.
 
-![image](./screenshots/main-extension.png)
+![image](https://i.imgur.com/GsDJm2h.png)
 
 
 ## Features
@@ -22,11 +22,11 @@ Convert your workspace files into well-structured prompts for Large Language Mod
 ## Screenshots
 - Fuzzy Search
   
-![image](./screenshots/fuzzy-search.png)
+![image](https://i.imgur.com/cDCegkj.png)
 
 - Filtering
   
-![image](./screenshots/filtering.png)
+![image](https://i.imgur.com/8qIk9Gq.png)
 
 
 ## Requirements
