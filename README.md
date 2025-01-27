@@ -4,51 +4,30 @@ Convert your workspace files into well-structured prompts for Large Language Mod
 
 ## Features
 
-- **Advanced File Selection**:
-  - Interactive file explorer with checkbox selection
-  - Fuzzy search functionality for quick file finding
-  - Bulk selection/deselection options
-  - Directory-based selection
-
-- **Smart Filtering**:
-  - Honor .gitignore rules
-  - Filter hidden files
+- **File Management**:
+  - Interactive file explorer with fuzzy search
+  - Smart filtering with .gitignore support
   - Custom ignore patterns with glob support
-  - Directory-based filtering
   - Visual tracking of excluded content
 
-- **Enhanced Preview System**:
-  - Split-view interface with file list and preview
-  - Real-time sync status indicators
-  - One-click copy to clipboard
-  - Excluded files visibility
-  - File count tracking
-
-- **Output Formats**:
+- **Preview & Output**:
+  - Split-view interface with real-time preview
+  - Token counting using o200k_base encoder (±15% accuracy)
   - Claude-optimized XML format
-  - Simple text format with clear file separators
-
-- **Comprehensive Settings**:
-  - Visual settings panel
-  - Real-time configuration updates
-  - Customizable search behavior
-  - Flexible ignore patterns
+  - One-click copy to clipboard
 
 ## Requirements
 
 - VS Code 1.96.0 or higher
-- No additional dependencies required
 
-## Extension Settings
+## Settings
 
-This extension contributes the following settings:
-
-* `files-to-llm-prompt.includeHidden`: Show files and folders that start with a dot (.)
-* `files-to-llm-prompt.overrideGitignore`: Show all files, including those listed in .gitignore files
-* `files-to-llm-prompt.includeDirectories`: Apply ignore patterns to folder names as well as file names
+* `files-to-llm-prompt.includeHidden`: Show files starting with dot (.)
+* `files-to-llm-prompt.overrideGitignore`: Show all files, including those in .gitignore
+* `files-to-llm-prompt.includeDirectories`: Apply ignore patterns to folders
 * `files-to-llm-prompt.ignorePatterns`: Patterns for files and folders to hide from the explorer (e.g., *.log, node_modules)
-* `files-to-llm-prompt.outputFormat`: Choose between 'default' and 'claude-xml' output formats
-* `files-to-llm-prompt.fuzzySearchThreshold`: Adjust the sensitivity of fuzzy search (0-1, default: 0.6)
+* `files-to-llm-prompt.outputFormat`: 'default' or 'claude-xml'
+* `files-to-llm-prompt.fuzzySearchThreshold`: Search sensitivity (0-1, default: 0.6)
 
 ## Usage
 
@@ -64,25 +43,9 @@ This extension contributes the following settings:
    - Preview panel
 5. Preview the generated prompt and copy to clipboard when ready
 
-### Search Functionality
+## Output Formats
 
-- Use the search bar in the preview panel to quickly find files
-- Fuzzy matching helps find files even with partial or imperfect matches
-- Real-time search results with highlighted matches
-- Quick add buttons for search results
-
-### Preview Panel Features
-
-- Split view showing both selected files and preview
-- Sync status indicator when changes are pending
-- List of excluded files/folders with pattern information
-- File count display
-- One-click copy to clipboard
-- Refresh button to update preview
-
-### Output Formats
-
-#### Claude XML Format
+### Claude XML
 ```xml
 <documents>
 <document index="1">
@@ -94,7 +57,7 @@ This extension contributes the following settings:
 </documents>
 ```
 
-#### Default Format
+### Default Format
 ```
 path/to/file.js
 ---
@@ -105,35 +68,12 @@ path/to/file.js
 ## Performance Considerations
 
 - Fuzzy search is optimized with debouncing
-- Real-time preview updates
 - Efficient file filtering system
-- Handles workspace changes gracefully
+- Handles workspace changes well
 
 ## Known Issues
 
-- Very large files may impact performance
-- Binary files are automatically excluded
-- Maximum file size limit is determined by VS Code's file reading capabilities
-
-## Release Notes
-
-### 0.0.5 - Current Release
-
-- Added fuzzy search functionality
-- Enhanced preview panel with sync status
-- Added excluded files visibility
-- Improved file selection UI
-- Added file count display
-- Real-time search results
-- Performance optimizations
-
-### 0.0.1 - Initial Release
-
-- Basic file explorer with checkbox selection
-- Multiple output formats
-- Simple preview functionality
-- Basic filtering options
-- Settings panel
+- Very large files/code-bases may impact performance
 
 ## Contributing
 
