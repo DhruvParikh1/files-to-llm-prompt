@@ -102,6 +102,7 @@ export class PreviewPanel {
                         height: 100vh;
                         margin: 0;
                         box-sizing: border-box;
+                        overflow: hidden;
                     }
                     .search-container {
                         position: relative;
@@ -191,7 +192,9 @@ export class PreviewPanel {
                         padding: 16px;
                         display: flex;
                         flex-direction: column;
-                        height: calc(100vh - 40px);
+                        height: 100vh;
+                        overflow-y: auto; /* Make the container scrollable */
+                        box-sizing: border-box;
                     }
                     .file-list-header {
                         font-weight: bold;
@@ -244,6 +247,7 @@ export class PreviewPanel {
                         margin-top: 20px;
                         border-top: 1px solid var(--vscode-panel-border);
                         padding-top: 10px;
+                        padding-bottom: 10px;
                         display: flex;
                         flex-direction: column;
                         height: 50%;
@@ -281,12 +285,120 @@ export class PreviewPanel {
                     .preview-container {
                         display: flex;
                         flex-direction: column;
-                        height: calc(100vh - 40px);
+                        height: 100vh;
+                        padding: 16px;
+                        gap: 12px;
+                        box-sizing: border-box;
+                        overflow: hidden;
                     }
-                    .toolbar {
-                        margin-bottom: 10px;
+
+                    .preview-header {
                         display: flex;
-                        gap: 10px;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding-bottom: 8px;
+                        border-bottom: 1px solid var(--vscode-panel-border);
+                    }
+
+                    .preview-actions {
+                        display: flex;
+                        gap: 8px;
+                    }
+
+                    .action-button {
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        padding: 6px 12px;
+                        background: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 12px;
+                    }
+
+                    .action-button:hover {
+                        background: var(--vscode-button-hoverBackground);
+                    }
+
+                    .button-icon {
+                        font-size: 14px;
+                    }
+
+                    .preview-settings {
+                        display: flex;
+                        align-items: center;
+                    }
+
+                    .tree-toggle {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        font-size: 12px;
+                        color: var(--vscode-foreground);
+                        cursor: pointer;
+                    }
+
+                    .tree-toggle input[type="checkbox"] {
+                        position: relative;
+                        appearance: none;
+                        width: 16px;
+                        height: 16px;
+                        border: 1px solid var(--vscode-checkbox-border);
+                        border-radius: 3px;
+                        background: var(--vscode-checkbox-background);
+                        cursor: pointer;
+                    }
+
+                    .tree-toggle input[type="checkbox"]:checked {
+                        background: var(--vscode-checkbox-selectBackground);
+                        border-color: var(--vscode-checkbox-selectBorder);
+                    }
+
+                    .tree-toggle input[type="checkbox"]:checked::after {
+                        content: "✓";
+                        position: absolute;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 16px;
+                        height: 16px;
+                        color: var(--vscode-checkbox-foreground);
+                        font-size: 12px;
+                    }
+
+                    .sync-warning {
+                        display: none;
+                        padding: 8px 12px;
+                        background: var(--vscode-inputValidation-warningBackground);
+                        border: 1px solid var(--vscode-inputValidation-warningBorder);
+                        border-radius: 4px;
+                        font-size: 12px;
+                        color: var(--vscode-inputValidation-warningForeground);
+                        align-items: center;
+                        gap: 8px;
+                    }
+
+                    .sync-warning.visible {
+                        display: flex;
+                    }
+
+                    .warning-icon {
+                        font-size: 14px;
+                    }
+
+                    .preview-content {
+                        flex: 1;
+                        padding: 12px;
+                        background: var(--vscode-editor-background);
+                        border: 1px solid var(--vscode-panel-border);
+                        border-radius: 4px;
+                        overflow-y: auto;
+                        font-family: var(--vscode-editor-font-family);
+                        font-size: var(--vscode-editor-font-size);
+                        line-height: 1.5;
+                        white-space: pre-wrap;
                     }
                     button {
                         background: var(--vscode-button-background);
@@ -313,69 +425,9 @@ export class PreviewPanel {
                         color: var(--vscode-descriptionForeground);
                         margin-top: 5px;
                     }
-                    .warning-message {
-                        display: none;
-                        color: var(--vscode-editorWarning-foreground);
-                        font-size: 0.9em;
-                        padding: 4px 8px;
-                        border-radius: 3px;
-                        margin-left: 10px;
-                        align-items: center;
-                        background: var(--vscode-editorWarning-background, rgba(255, 180, 0, 0.1));
-                    }
-                    .warning-message.visible {
-                        display: flex;
-                    }
+                    
                     .warning-icon {
                         margin-right: 6px;
-                    }
-                    .toggle-container {
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                    }
-                    .toggle-switch {
-                        position: relative;
-                        display: inline-block;
-                        width: 40px;
-                        height: 20px;
-                    }
-                    .toggle-switch input {
-                        opacity: 0;
-                        width: 0;
-                        height: 0;
-                    }
-                    .toggle-slider {
-                        position: absolute;
-                        cursor: pointer;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background-color: var(--vscode-input-background);
-                        transition: .4s;
-                        border-radius: 20px;
-                    }
-                    .toggle-slider:before {
-                        position: absolute;
-                        content: "";
-                        height: 16px;
-                        width: 16px;
-                        left: 2px;
-                        bottom: 2px;
-                        background-color: var(--vscode-button-background);
-                        transition: .4s;
-                        border-radius: 50%;
-                    }
-                    input:checked + .toggle-slider {
-                        background-color: var(--vscode-button-background);
-                    }
-                    input:checked + .toggle-slider:before {
-                        transform: translateX(20px);
-                    }
-                    .toggle-label {
-                        color: var(--vscode-foreground);
-                        user-select: none;
                     }
                 </style>
             </head>
@@ -400,22 +452,32 @@ export class PreviewPanel {
                     </div>
                 </div>
                 <div class="preview-container">
-                    <div class="toolbar">
-                        <button id="copyButton">Copy to Clipboard</button>
-                        <button id="refreshButton">Refresh Preview</button>
-                        <div class="toggle-container">
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="includeTreeStructure">
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <span class="toggle-label">Include Tree Structure</span>
+                    <div class="preview-header">
+                        <div class="preview-actions">
+                            <button id="copyButton" class="action-button">
+                                <span class="button-icon">📋</span>
+                                Copy
+                            </button>
+                            <button id="refreshButton" class="action-button">
+                                <span class="button-icon">🔄</span>
+                                Refresh
+                            </button>
                         </div>
-                        <div id="syncWarning" class="warning-message">
-                            <span class="warning-icon">⚠️</span>
-                            Preview is out of sync with selected files. Click 'Refresh Preview' to update.
+                        
+                        <div class="preview-settings">
+                            <label class="tree-toggle">
+                                <input type="checkbox" id="includeTreeStructure">
+                                <span class="toggle-label">Include Tree Structure</span>
+                            </label>
                         </div>
                     </div>
-                    <div id="preview">Preview content will appear here... Select a file to continue...</div>
+                    
+                    <div id="syncWarning" class="sync-warning">
+                        <span class="warning-icon">⚠️</span>
+                        Preview is out of sync with selected files. Click 'Refresh' to update.
+                    </div>
+                    
+                    <div id="preview" class="preview-content"></div>
                 </div>
                 <script>
                     const vscode = acquireVsCodeApi();
@@ -571,6 +633,7 @@ export class PreviewPanel {
                     // Refresh button handler
                     document.getElementById('refreshButton').addEventListener('click', () => {
                         vscode.postMessage({ type: 'refresh' });
+                        vscode.postMessage({ type: 'info', message: 'Preview content refreshed' });
                     });
 
                     // Include tree structure toggle handler
