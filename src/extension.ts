@@ -142,7 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
                         // Start with documents tag and tree structure, with consistent indentation
                         finalPrompt = `<documents>
 <document index="1">
-<source>project-structure</source>
+<source>project-tree-structure.txt</source>
 <document_content>
 ${treeStructure}</document_content>
 </document>`;
