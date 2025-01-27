@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { FileExplorerProvider } from './providers/FileExplorerProvider';
 import { SettingsProvider } from './providers/SettingsProvider';
 import { PreviewPanel } from './panels/PreviewPanel';
-import { generatePrompt } from './utils/fileUtils';
+import { generatePrompt, generateTreeStructure } from './utils/fileUtils';
 
 export function activate(context: vscode.ExtensionContext) {
     const debugLogger = vscode.window.createOutputChannel("Files-to-LLM Extension");
@@ -100,16 +100,16 @@ export function activate(context: vscode.ExtensionContext) {
             debugLogger.appendLine('\n=== Generate Prompt Command Triggered ===');
             const selectedFiles = fileExplorerProvider.getSelectedFiles();
             debugLogger.appendLine(`Selected files: ${JSON.stringify(selectedFiles)}`);
-
+    
             if (selectedFiles.length === 0) {
                 vscode.window.showWarningMessage('Please select at least one file to generate a prompt.');
                 return;
             }
-
+    
             try {
                 const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
                 debugLogger.appendLine(`Using configuration: ${JSON.stringify(config, null, 2)}`);
-
+    
                 const prompt = await generatePrompt(selectedFiles, {
                     includeHidden: config.get('includeHidden') || false,
                     includeDirectories: config.get('includeDirectories') || false,
@@ -117,13 +117,60 @@ export function activate(context: vscode.ExtensionContext) {
                     ignorePatterns: config.get('ignorePatterns') || [],
                     outputFormat: config.get('outputFormat') || 'claude-xml'
                 });
+    
+                // Generate tree structure if enabled
+                let finalPrompt = '';
+                if (config.get('includeTreeStructure')) {
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    if (!workspaceFolders) {
+                        vscode.window.showErrorMessage('No workspace folder found');
+                        return;
+                    }
 
+                    const treeStructure = await generateTreeStructure(
+                        workspaceFolders[0].uri.fsPath,
+                        {
+                            includeHidden: config.get('includeHidden') || false,
+                            includeDirectories: config.get('includeDirectories') || false,
+                            ignoreGitignore: config.get('ignoreGitignore') || false,
+                            ignorePatterns: config.get('ignorePatterns') || [],
+                            outputFormat: config.get('outputFormat') || 'claude-xml'
+                        }
+                    );
+
+                    if (config.get('outputFormat') === 'claude-xml') {
+                        // Start with documents tag and tree structure, with consistent indentation
+                        finalPrompt = `<documents>
+<document index="1">
+<source>project-structure</source>
+<document_content>
+${treeStructure}</document_content>
+</document>`;
+                    
+                        // Add the rest of the prompt, but increment all indices by 1
+                        const restOfPrompt = prompt
+                            .replace('<documents>\n', '') // Remove opening documents tag
+                            .replace('</documents>', '') // Remove closing documents tag
+                            .replace(/<document index="(\d+)">/g, (match, index) => 
+                                `<document index="${parseInt(index) + 1}">`
+                            )
+                            .trim(); // Remove any trailing whitespace
+                    
+                        finalPrompt += `\n${restOfPrompt}\n</documents>`; // Single newline before closing tag
+                    } else {
+                        // For default format, put tree structure first
+                        finalPrompt = `project-structure\n---\n${treeStructure}\n---\n\n${prompt}`;
+                    }
+                } else {
+                    finalPrompt = prompt;
+                }
+    
                 // Ensure preview panel is visible and update it
                 PreviewPanel.createOrShow(context.extensionUri);
                 await new Promise(resolve => setTimeout(resolve, 500));
                 if (PreviewPanel.currentPanel) {
                     PreviewPanel.currentPanel.updateFileList(selectedFiles);
-                    PreviewPanel.currentPanel.updateContent(prompt);
+                    PreviewPanel.currentPanel.updateContent(finalPrompt);
                     debugLogger.appendLine('Updated preview panel with content and file list');
                 } else {
                     debugLogger.appendLine('Failed to initialize preview panel');

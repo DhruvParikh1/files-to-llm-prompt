@@ -138,6 +138,11 @@
           "maximum": 1,
           "default": 0.6,
           "description": "Threshold for fuzzy search matching (0-1). Lower values return more matches."
+        },
+        "files-to-llm-prompt.includeTreeStructure": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include the tree structure in the prompt output"
         }
       }
     }

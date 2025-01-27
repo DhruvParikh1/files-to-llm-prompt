@@ -10,6 +10,12 @@ interface ProcessOptions {
     outputFormat: 'default' | 'claude-xml';
 }
 
+interface TreeNode {
+    name: string;
+    type: 'file' | 'directory';
+    children?: TreeNode[];
+}
+
 export async function generatePrompt(
     filePaths: string[],
     options: ProcessOptions
@@ -102,4 +108,112 @@ function formatClaudeXml(files: { path: string; content: string }[]): string {
     ).join('\n');
 
     return `<documents>\n${fileContents}\n</documents>`;
+}
+
+
+export async function generateTreeStructure(
+    basePath: string,
+    options: ProcessOptions
+): Promise<string> {
+    const tree = await buildTree(basePath, options);
+    return tree ? formatTree(tree, '', true) : '';
+}
+
+async function buildTree(
+    currentPath: string,
+    options: ProcessOptions,
+    depth: number = 0
+): Promise<TreeNode | null> {
+    const stats = await vscode.workspace.fs.stat(vscode.Uri.file(currentPath));
+    const name = path.basename(currentPath);
+
+    // Check if the current item should be included based on options
+    if (!shouldIncludeInTree(name, stats.type === vscode.FileType.Directory, currentPath, options)) {
+        return null;
+    }
+
+    if (stats.type === vscode.FileType.File) {
+        return { name, type: 'file' };
+    }
+
+    // Handle directory
+    const entries = await vscode.workspace.fs.readDirectory(vscode.Uri.file(currentPath));
+    const children: TreeNode[] = [];
+
+    for (const [childName, childType] of entries) {
+        const childPath = path.join(currentPath, childName);
+        const childNode = await buildTree(childPath, options, depth + 1);
+        if (childNode) {
+            children.push(childNode);
+        }
+    }
+
+    // Sort children: directories first, then files, both alphabetically
+    children.sort((a, b) => {
+        if (a.type !== b.type) {
+            return a.type === 'directory' ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+    });
+
+    return { name, type: 'directory', children };
+}
+
+function formatTree(node: TreeNode, prefix: string, isLast: boolean): string {
+    if (!node) {return '';}
+
+    let result = prefix;
+    
+    // Add appropriate prefix characters
+    if (prefix) {
+        result += isLast ? '└── ' : '├── ';
+    }
+    
+    result += node.name + '\n';
+    
+    if (node.type === 'directory' && node.children) {
+        const childPrefix = prefix + (isLast ? '    ' : '│   ');
+        
+        for (let i = 0; i < node.children.length; i++) {
+            const child = node.children[i];
+            const isLastChild = i === node.children.length - 1;
+            result += formatTree(child, childPrefix, isLastChild);
+        }
+    }
+    
+    return result;
+}
+
+function shouldIncludeInTree(
+    name: string,
+    isDirectory: boolean,
+    fullPath: string,
+    options: ProcessOptions
+): boolean {
+    // Reuse existing shouldInclude logic from FileExplorerProvider
+    // but simplified for tree structure
+    if (!options.includeHidden && name.startsWith('.')) {
+        return false;
+    }
+
+    const ignorePatterns = options.ignorePatterns || [];
+    for (const pattern of ignorePatterns) {
+        if (!pattern.trim()) {continue;}
+        
+        // Convert glob pattern to regex
+        const regex = new RegExp(pattern
+            .replace(/\./g, '\\.')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.'));
+            
+        if (regex.test(name)) {
+            return false;
+        }
+    }
+
+    if (!options.ignoreGitignore) {
+        // Add gitignore checking logic here
+    }
+
+    return true;
 }

@@ -13,6 +13,14 @@ export class PreviewPanel {
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.webview.html = this._getWebviewContent([]);
         this._setWebviewMessageListener(this._panel.webview);
+
+        const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
+        const includeTree = config.get('includeTreeStructure') || false;
+        
+        this._panel.webview.postMessage({
+            type: 'initializeTreeStructure',
+            enabled: includeTree
+        });
     }
 
     public static createOrShow(extensionUri: vscode.Uri) {
@@ -321,6 +329,54 @@ export class PreviewPanel {
                     .warning-icon {
                         margin-right: 6px;
                     }
+                    .toggle-container {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .toggle-switch {
+                        position: relative;
+                        display: inline-block;
+                        width: 40px;
+                        height: 20px;
+                    }
+                    .toggle-switch input {
+                        opacity: 0;
+                        width: 0;
+                        height: 0;
+                    }
+                    .toggle-slider {
+                        position: absolute;
+                        cursor: pointer;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background-color: var(--vscode-input-background);
+                        transition: .4s;
+                        border-radius: 20px;
+                    }
+                    .toggle-slider:before {
+                        position: absolute;
+                        content: "";
+                        height: 16px;
+                        width: 16px;
+                        left: 2px;
+                        bottom: 2px;
+                        background-color: var(--vscode-button-background);
+                        transition: .4s;
+                        border-radius: 50%;
+                    }
+                    input:checked + .toggle-slider {
+                        background-color: var(--vscode-button-background);
+                    }
+                    input:checked + .toggle-slider:before {
+                        transform: translateX(20px);
+                    }
+                    .toggle-label {
+                        color: var(--vscode-foreground);
+                        user-select: none;
+                    }
                 </style>
             </head>
             <body>
@@ -347,6 +403,13 @@ export class PreviewPanel {
                     <div class="toolbar">
                         <button id="copyButton">Copy to Clipboard</button>
                         <button id="refreshButton">Refresh Preview</button>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="includeTreeStructure">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">Include Tree Structure</span>
+                        </div>
                         <div id="syncWarning" class="warning-message">
                             <span class="warning-icon">⚠️</span>
                             Preview is out of sync with selected files. Click 'Refresh Preview' to update.
@@ -452,6 +515,9 @@ export class PreviewPanel {
                             case 'updateExcludedContent':
                                 renderExcludedList(message.entries);
                                 break;
+                            case 'initializeTreeStructure':
+                                document.getElementById('includeTreeStructure').checked = message.enabled;
+                                break;
                             case 'searchResults':
                                 const filteredFiles = message.files.filter(file => 
                                     !selectedFiles.includes(file)
@@ -505,6 +571,15 @@ export class PreviewPanel {
                     // Refresh button handler
                     document.getElementById('refreshButton').addEventListener('click', () => {
                         vscode.postMessage({ type: 'refresh' });
+                    });
+
+                    // Include tree structure toggle handler
+                    document.getElementById('includeTreeStructure').addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        vscode.postMessage({ 
+                            type: 'updateTreeStructure',
+                            enabled: isChecked
+                        });
                     });
 
                     // Search functionality
@@ -621,6 +696,14 @@ export class PreviewPanel {
                             type: 'searchResults',
                             files: files
                         });
+                        break;
+                    case 'updateTreeStructure':
+                        await vscode.workspace.getConfiguration('files-to-llm-prompt').update(
+                            'includeTreeStructure',
+                            message.enabled,
+                            vscode.ConfigurationTarget.Global
+                        );
+                        vscode.commands.executeCommand('files-to-llm-prompt.generatePrompt');
                         break;
                 }
             },
