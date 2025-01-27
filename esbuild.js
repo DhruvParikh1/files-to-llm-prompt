@@ -1,4 +1,5 @@
 const esbuild = require("esbuild");
+const { copy } = require('esbuild-plugin-copy');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -38,7 +39,15 @@ async function main() {
 		external: ['vscode'],
 		logLevel: 'silent',
 		plugins: [
-			/* add to the end of plugins array */
+			copy({
+					// Copy tiktoken wasm file to dist
+					assets: [
+							{
+									from: './node_modules/tiktoken/tiktoken_bg.wasm',
+									to: './tiktoken_bg.wasm',
+							}
+					]
+			}),
 			esbuildProblemMatcherPlugin,
 		],
 	});
