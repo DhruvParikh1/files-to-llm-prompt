@@ -477,7 +477,7 @@ export class PreviewPanel {
                         Preview is out of sync with selected files. Click 'Refresh' to update.
                     </div>
                     
-                    <div id="preview" class="preview-content"></div>
+                    <div id="preview" class="preview-content">Preview content will appear here once a file is selected...</div>
                 </div>
                 <script>
                     const vscode = acquireVsCodeApi();
