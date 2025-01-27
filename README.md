@@ -2,6 +2,9 @@
 
 Convert your workspace files into well-structured prompts for Large Language Models (LLMs), with special optimization for Claude's XML format.
 
+![image](https://github.com/user-attachments/assets/48058cfe-51a7-4bfa-b9a2-9913ac5f7979)
+
+
 ## Features
 
 - **File Management**:
@@ -15,6 +18,16 @@ Convert your workspace files into well-structured prompts for Large Language Mod
   - Token counting using o200k_base encoder (±15% accuracy)
   - Claude-optimized XML format
   - One-click copy to clipboard
+ 
+## Screenshots
+- Fuzzy Search
+  
+![image](https://github.com/user-attachments/assets/eb2dd330-7383-4ffc-928c-44325c382473)
+
+- Filtering
+  
+![image](https://github.com/user-attachments/assets/568f2294-dc9c-451c-ba90-4c0340135fda)
+
 
 ## Requirements
 
