@@ -180,6 +180,7 @@
     "fast-fuzzy": "^1.12.0",
     "files-to-llm-prompt": "file:",
     "glob": "^11.0.1",
-    "lru-cache": "^11.0.2"
+    "lru-cache": "^11.0.2",
+    "tiktoken": "^1.0.18"
   }
 }

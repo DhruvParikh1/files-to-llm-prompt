@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ExcludedEntry } from '../providers/FileExplorerProvider';
+import { countTokens, disposeEncoder, initializeEncoder } from '../utils/token-counter';
 
 export class PreviewPanel {
     public static currentPanel: PreviewPanel | undefined;
@@ -20,6 +21,11 @@ export class PreviewPanel {
         this._panel.webview.postMessage({
             type: 'initializeTreeStructure',
             enabled: includeTree
+        });
+
+        // Initialize token encoder
+        initializeEncoder().catch(error => {
+            console.error('Failed to initialize token encoder:', error);
         });
     }
 
@@ -46,12 +52,18 @@ export class PreviewPanel {
         PreviewPanel.currentPanel = new PreviewPanel(panel, extensionUri);
     }
 
-    public updateContent(content: string) {
+    public async updateContent(content: string) {
         this._currentPreviewFiles = [...this._selectedFiles];
+        
+        // Count tokens
+        const tokenCount = await countTokens(content);
+        
         this._panel.webview.postMessage({
             type: 'updatePreviewContent',
-            content: content
+            content: content,
+            tokenCount: tokenCount
         });
+        
         this.checkSyncStatus();
     }
     
@@ -331,6 +343,12 @@ export class PreviewPanel {
                         align-items: center;
                     }
 
+                    .token-count {
+                        margin-right: 16px;
+                        color: var(--vscode-descriptionForeground);
+                        font-size: 12px;
+                    }
+
                     .tree-toggle {
                         display: flex;
                         align-items: center;
@@ -465,6 +483,7 @@ export class PreviewPanel {
                         </div>
                         
                         <div class="preview-settings">
+                            <span class="token-count">Tokens: 0</span>
                             <label class="tree-toggle">
                                 <input type="checkbox" id="includeTreeStructure">
                                 <span class="toggle-label">Include Tree Structure</span>
@@ -565,6 +584,7 @@ export class PreviewPanel {
                         switch (message.type) {
                             case 'updatePreviewContent':
                                 preview.textContent = message.content;
+                                document.querySelector('.token-count').textContent = \`Tokens: \${message.tokenCount}\`;
                                 break;
                             case 'updateFileList':
                                 selectedFiles = message.files;
@@ -778,6 +798,10 @@ export class PreviewPanel {
     public dispose() {
         PreviewPanel.currentPanel = undefined;
         this._panel.dispose();
+
+        // Dispose token encoder
+        disposeEncoder();
+    
         while (this._disposables.length) {
             const disposable = this._disposables.pop();
             if (disposable) {
