@@ -78,6 +78,24 @@ path/to/file.js
 ---
 ```
 
+## Development & Testing
+
+### Running the Extension for Testing
+
+To test the extension during development:
+
+1. **Quick Start**: Press `F5` or go to `Run > Start Debugging`
+2. **Manual Launch**: Open Run and Debug panel (`Ctrl+Shift+D`), select "Run Extension", then click play
+3. **Extension Development Host**: A new VSCode window will open with `[Extension Development Host]` in the title
+4. **Testing**: In the Development Host window, you can:
+   - Access your extension via Command Palette (`Ctrl+Shift+P`)
+   - Test all functionality in real-time
+   - Check the Extensions view
+5. **Debug Output**: Console logs appear in the original window's Debug Console
+6. **Reloading**: After code changes, press `Ctrl+R` (or `Cmd+R` on Mac) in the Development Host to reload
+
+Make sure your `.vscode/launch.json` file is properly configured (automatically created with the Extension template).
+
 ## Performance Considerations
 
 - Fuzzy search is optimized with debouncing
