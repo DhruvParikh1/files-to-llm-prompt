@@ -1,5 +1,7 @@
 # Files to LLM Prompt
 
+## https://marketplace.visualstudio.com/items?itemName=DhrxvExtensions.files-to-llm-prompt
+
 Convert your workspace files into well-structured prompts for Large Language Models (LLMs), with special optimization for Claude's XML format.
 
 ![image](https://i.imgur.com/GsDJm2h.png)
