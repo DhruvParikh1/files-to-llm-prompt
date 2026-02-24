@@ -189,6 +189,36 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
                             Choose how the selected files will be formatted in the generated prompt
                         </div>
                     </div>
+
+                    <div class="setting-item">
+                        <label>Path Style</label>
+                        <select id="pathStyle">
+                            <option value="absolute" ${config.get<'absolute' | 'relative'>('pathStyle', 'absolute') === 'absolute' ? 'selected' : ''}>
+                                Absolute Paths
+                            </option>
+                            <option value="relative" ${config.get<'absolute' | 'relative'>('pathStyle', 'absolute') === 'relative' ? 'selected' : ''}>
+                                Relative to Workspace
+                            </option>
+                        </select>
+                        <div class="description">
+                            Controls whether generated file paths include full system paths or only project-relative paths
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Tree Scope</label>
+                        <select id="treeScope">
+                            <option value="workspace" ${config.get<'workspace' | 'selected'>('treeScope', 'workspace') === 'workspace' ? 'selected' : ''}>
+                                Full Workspace Tree
+                            </option>
+                            <option value="selected" ${config.get<'workspace' | 'selected'>('treeScope', 'workspace') === 'selected' ? 'selected' : ''}>
+                                Selected Files Only
+                            </option>
+                        </select>
+                        <div class="description">
+                            Applies only when Include Tree Structure is enabled; path style does not affect tree shape
+                        </div>
+                    </div>
                 </div>
 
                 <script>

@@ -42,6 +42,8 @@ Convert your workspace files into well-structured prompts for Large Language Mod
 * `files-to-llm-prompt.includeDirectories`: Apply ignore patterns to folders
 * `files-to-llm-prompt.ignorePatterns`: Patterns for files and folders to hide from the explorer (e.g., *.log, node_modules)
 * `files-to-llm-prompt.outputFormat`: 'default' or 'claude-xml'
+* `files-to-llm-prompt.pathStyle`: 'absolute' or 'relative' paths in generated output
+* `files-to-llm-prompt.treeScope`: 'workspace' (full tree) or 'selected' (selected-files-only tree)
 * `files-to-llm-prompt.fuzzySearchThreshold`: Search sensitivity (0-1, default: 0.6)
 
 ## Usage

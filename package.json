@@ -132,6 +132,15 @@
           "default": "claude-xml",
           "description": "Format to use when generating the prompt output"
         },
+        "files-to-llm-prompt.pathStyle": {
+          "type": "string",
+          "enum": [
+            "absolute",
+            "relative"
+          ],
+          "default": "absolute",
+          "description": "Path style to use in generated output (absolute or workspace-relative)"
+        },
         "files-to-llm-prompt.fuzzySearchThreshold": {
           "type": "number",
           "minimum": 0,
@@ -143,6 +152,15 @@
           "type": "boolean",
           "default": false,
           "description": "Include the tree structure in the prompt output"
+        },
+        "files-to-llm-prompt.treeScope": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "selected"
+          ],
+          "default": "workspace",
+          "description": "When tree structure is enabled, include either the full workspace tree or only the selected files"
         }
       }
     }

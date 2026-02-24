@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { FileExplorerProvider } from './providers/FileExplorerProvider';
 import { SettingsProvider } from './providers/SettingsProvider';
 import { PreviewPanel } from './panels/PreviewPanel';
-import { generatePrompt, generateTreeStructure } from './utils/fileUtils';
+import { generatePrompt, generateSelectedTreeStructure, generateTreeStructure } from './utils/fileUtils';
 
 export function activate(context: vscode.ExtensionContext) {
     const debugLogger = vscode.window.createOutputChannel("Files-to-LLM Extension");
@@ -115,28 +115,33 @@ export function activate(context: vscode.ExtensionContext) {
                     includeDirectories: config.get('includeDirectories') || false,
                     ignoreGitignore: config.get('ignoreGitignore') || false,
                     ignorePatterns: config.get('ignorePatterns') || [],
-                    outputFormat: config.get('outputFormat') || 'claude-xml'
+                    outputFormat: config.get('outputFormat') || 'claude-xml',
+                    pathStyle: config.get('pathStyle') || 'absolute'
                 });
     
                 // Generate tree structure if enabled
                 let finalPrompt = '';
                 if (config.get('includeTreeStructure')) {
+                    const treeScope = config.get<'workspace' | 'selected'>('treeScope', 'workspace');
                     const workspaceFolders = vscode.workspace.workspaceFolders;
                     if (!workspaceFolders) {
                         vscode.window.showErrorMessage('No workspace folder found');
                         return;
                     }
 
-                    const treeStructure = await generateTreeStructure(
-                        workspaceFolders[0].uri.fsPath,
-                        {
-                            includeHidden: config.get('includeHidden') || false,
-                            includeDirectories: config.get('includeDirectories') || false,
-                            ignoreGitignore: config.get('ignoreGitignore') || false,
-                            ignorePatterns: config.get('ignorePatterns') || [],
-                            outputFormat: config.get('outputFormat') || 'claude-xml'
-                        }
-                    );
+                    const treeStructure = treeScope === 'selected'
+                        ? generateSelectedTreeStructure(selectedFiles)
+                        : await generateTreeStructure(
+                            workspaceFolders[0].uri.fsPath,
+                            {
+                                includeHidden: config.get('includeHidden') || false,
+                                includeDirectories: config.get('includeDirectories') || false,
+                                ignoreGitignore: config.get('ignoreGitignore') || false,
+                                ignorePatterns: config.get('ignorePatterns') || [],
+                                outputFormat: config.get('outputFormat') || 'claude-xml',
+                                pathStyle: config.get('pathStyle') || 'absolute'
+                            }
+                        );
 
                     if (config.get('outputFormat') === 'claude-xml') {
                         // Start with documents tag and tree structure, with consistent indentation
