@@ -107,6 +107,7 @@ Make sure your `.vscode/launch.json` file is properly configured (automatically 
 ## Known Issues
 
 - Very large files/code-bases may impact performance
+- File operations (rename/delete) are not provided by this extension's custom file explorer. Use the regular VS Code Explorer for file management.
 
 ## Contributing
 

@@ -21,7 +21,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     private selectedFiles: Set<string> = new Set();
     private allFiles: Set<string> = new Set();
-    private fileToDirectoryMap: Map<string, string> = new Map();
     private treeView?: vscode.TreeView<FileItem>;
     private debugLogger: vscode.OutputChannel;
 
@@ -156,7 +155,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                             const shouldAdd = this.shouldInclude(name, false, element.resourceUri);
                             if (shouldAdd) {
                                 this.allFiles.add(uri.fsPath);
-                                this.fileToDirectoryMap.set(uri.fsPath, element.resourceUri.fsPath);
                             }
                         }
 
@@ -378,9 +376,30 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     private isDirectorySelected(directoryPath: string): boolean {
         const childFiles = Array.from(this.allFiles)
-            .filter(filePath => this.fileToDirectoryMap.get(filePath) === directoryPath);
+            .filter(filePath => this.isDescendantPath(filePath, directoryPath));
         
         return childFiles.length > 0 && childFiles.every(file => this.selectedFiles.has(file));
+    }
+
+    private isDescendantPath(filePath: string, directoryPath: string): boolean {
+        const normalizedFile = path.resolve(filePath);
+        const normalizedDirectory = path.resolve(directoryPath);
+
+        if (normalizedFile === normalizedDirectory) {
+            return false;
+        }
+
+        const fileComparable = process.platform === 'win32'
+            ? normalizedFile.toLowerCase()
+            : normalizedFile;
+        const directoryComparable = process.platform === 'win32'
+            ? normalizedDirectory.toLowerCase()
+            : normalizedDirectory;
+        const directoryWithSeparator = directoryComparable.endsWith(path.sep)
+            ? directoryComparable
+            : `${directoryComparable}${path.sep}`;
+
+        return fileComparable.startsWith(directoryWithSeparator);
     }
 
     public async searchWorkspaceFiles(searchTerm: string): Promise<string[]> {
@@ -540,11 +559,9 @@ class FileItem extends vscode.TreeItem {
             arguments: [resourceUri.fsPath]
         };
 
-        if (isSelected) {
-            this.checkboxState = {
-                state: vscode.TreeItemCheckboxState.Checked,
-                tooltip: 'Selected (click name to deselect)'
-            };
-        }
+        this.checkboxState = {
+            state: isSelected ? vscode.TreeItemCheckboxState.Checked : vscode.TreeItemCheckboxState.Unchecked,
+            tooltip: isSelected ? 'Selected (click name to deselect)' : 'Not selected (click name to select)'
+        };
     }
 }

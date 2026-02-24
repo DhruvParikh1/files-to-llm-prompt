@@ -69,6 +69,14 @@ export class PreviewPanel {
     
     public updateFileList(files: string[]) {
         this._selectedFiles = files;
+        if (files.length === 0) {
+            this._currentPreviewFiles = [];
+            this._panel.webview.postMessage({
+                type: 'updatePreviewContent',
+                content: 'No files selected. Select files in the explorer, then click Refresh or Generate Prompt.',
+                tokenCount: 0
+            });
+        }
         this._panel.webview.postMessage({
             type: 'updateFileList',
             files: files
@@ -84,6 +92,15 @@ export class PreviewPanel {
     }
     
     private checkSyncStatus() {
+        if (this._selectedFiles.length === 0) {
+            this._panel.webview.postMessage({
+                type: 'updateSyncStatus',
+                isInSync: true,
+                selectedFileCount: 0
+            });
+            return;
+        }
+
         const isInSync = 
             this._currentPreviewFiles.length === this._selectedFiles.length &&
             this._currentPreviewFiles.every(file => this._selectedFiles.includes(file)) &&
@@ -91,7 +108,8 @@ export class PreviewPanel {
     
         this._panel.webview.postMessage({
             type: 'updateSyncStatus',
-            isInSync: isInSync
+            isInSync: isInSync,
+            selectedFileCount: this._selectedFiles.length
         });
     }
 
@@ -630,7 +648,7 @@ export class PreviewPanel {
                                 break;
                             case 'updateSyncStatus':
                                 const warningElement = document.getElementById('syncWarning');
-                                if (!message.isInSync) {
+                                if (message.selectedFileCount > 0 && !message.isInSync) {
                                     warningElement.classList.add('visible');
                                 } else {
                                     warningElement.classList.remove('visible');
@@ -652,8 +670,13 @@ export class PreviewPanel {
 
                     // Refresh button handler
                     document.getElementById('refreshButton').addEventListener('click', () => {
+                        if (selectedFiles.length === 0) {
+                            preview.textContent = 'No files selected. Select files in the explorer, then click Refresh or Generate Prompt.';
+                            document.querySelector('.token-count').textContent = 'Tokens: 0';
+                            document.getElementById('syncWarning').classList.remove('visible');
+                            return;
+                        }
                         vscode.postMessage({ type: 'refresh' });
-                        vscode.postMessage({ type: 'info', message: 'Preview content refreshed' });
                     });
 
                     // Include tree structure toggle handler
