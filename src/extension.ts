@@ -116,7 +116,9 @@ export function activate(context: vscode.ExtensionContext) {
                     ignoreGitignore: config.get('ignoreGitignore') || false,
                     ignorePatterns: config.get('ignorePatterns') || [],
                     outputFormat: config.get('outputFormat') || 'claude-xml',
-                    pathStyle: config.get('pathStyle') || 'absolute'
+                    pathStyle: config.get('pathStyle') || 'absolute',
+                    stripPatternsEnabled: config.get('stripPatternsEnabled') || false,
+                    stripPatterns: config.get<string[]>('stripPatterns') || []
                 });
     
                 // Generate tree structure if enabled

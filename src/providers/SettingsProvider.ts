@@ -219,6 +219,31 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
                             Applies only when Include Tree Structure is enabled; path style does not affect tree shape
                         </div>
                     </div>
+
+                    <div class="checkbox-item">
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="stripPatternsEnabled" 
+                                ${config.get('stripPatternsEnabled') ? 'checked' : ''}>
+                            <label>Enable Regex Strip Patterns</label>
+                        </div>
+                        <div class="description">
+                            Applies custom regex rules to remove matching content from all selected files before prompt generation
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <label>Strip Patterns (Regex)</label>
+                        <div class="description">
+                            One regex per line. Supports plain regex source or /pattern/flags form.
+                            <ul class="examples-list">
+                                <li><code>/^[ \\t]*#.*$/gm</code> - Remove hash-line comments</li>
+                                <li><code>/\\/\\*[\\s\\S]*?\\*\\//g</code> - Remove C-style block comments</li>
+                                <li><code>/^\\s*\\/\\/.*$/gm</code> - Remove slash-line comments</li>
+                            </ul>
+                        </div>
+                        <textarea id="stripPatterns" rows="4" 
+                            placeholder="Enter each regex pattern on a new line">${(config.get<string[]>('stripPatterns') || []).join('\n')}</textarea>
+                    </div>
                 </div>
 
                 <script>
@@ -243,6 +268,15 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
                         vscode.postMessage({
                             type: 'updateSetting',
                             setting: 'ignorePatterns',
+                            value: e.target.value.split('\\n').filter(pattern => pattern.trim())
+                        });
+                    });
+
+                    document.getElementById('stripPatterns').addEventListener('change', (e) => {
+                        console.log('Strip patterns changed:', e.target.value);
+                        vscode.postMessage({
+                            type: 'updateSetting',
+                            setting: 'stripPatterns',
                             value: e.target.value.split('\\n').filter(pattern => pattern.trim())
                         });
                     });

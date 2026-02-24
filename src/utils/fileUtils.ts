@@ -9,6 +9,8 @@ interface ProcessOptions {
     ignorePatterns: string[];
     outputFormat: 'default' | 'claude-xml';
     pathStyle?: 'absolute' | 'relative';
+    stripPatternsEnabled?: boolean;
+    stripPatterns?: string[];
 }
 
 interface TreeNode {
@@ -24,9 +26,13 @@ export async function generatePrompt(
     try {
         const files = await Promise.all(filePaths.map(async (filePath) => {
             const content = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
+            const rawContent = Buffer.from(content).toString('utf-8');
+            const transformedContent = options.stripPatternsEnabled
+                ? applyStripPatterns(rawContent, options.stripPatterns || [])
+                : rawContent;
             return {
                 path: getOutputPath(filePath, options.pathStyle || 'absolute'),
-                content: Buffer.from(content).toString('utf-8')
+                content: transformedContent
             };
         }));
 
@@ -125,6 +131,36 @@ function formatClaudeXml(files: { path: string; content: string }[]): string {
         .join('\n');
 
     return `<documents>\n${fileContents}\n</documents>`;
+}
+
+function applyStripPatterns(content: string, patterns: string[]): string {
+    let transformed = content;
+
+    for (const rawPattern of patterns) {
+        const pattern = rawPattern.trim();
+        if (!pattern) {
+            continue;
+        }
+
+        try {
+            const regex = buildRegex(pattern);
+            transformed = transformed.replace(regex, '');
+        } catch (error) {
+            console.error(`Invalid strip pattern "${pattern}":`, error);
+        }
+    }
+
+    return transformed;
+}
+
+function buildRegex(pattern: string): RegExp {
+    // Supports either plain regex source (`foo\\s+bar`) or JS literal style (`/foo\\s+bar/gm`)
+    const literalMatch = pattern.match(/^\/([\s\S]*)\/([gimsuyd]*)$/);
+    if (literalMatch) {
+        return new RegExp(literalMatch[1], literalMatch[2]);
+    }
+
+    return new RegExp(pattern, 'g');
 }
 
 export async function generateTreeStructure(

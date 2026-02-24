@@ -44,6 +44,8 @@ Convert your workspace files into well-structured prompts for Large Language Mod
 * `files-to-llm-prompt.outputFormat`: 'default' or 'claude-xml'
 * `files-to-llm-prompt.pathStyle`: 'absolute' or 'relative' paths in generated output
 * `files-to-llm-prompt.treeScope`: 'workspace' (full tree) or 'selected' (selected-files-only tree)
+* `files-to-llm-prompt.stripPatternsEnabled`: Enable custom regex-based content stripping before prompt generation
+* `files-to-llm-prompt.stripPatterns`: Regex patterns (one per line) applied sequentially to remove matching content
 * `files-to-llm-prompt.fuzzySearchThreshold`: Search sensitivity (0-1, default: 0.6)
 
 ## Usage

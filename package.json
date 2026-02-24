@@ -161,6 +161,19 @@
           ],
           "default": "workspace",
           "description": "When tree structure is enabled, include either the full workspace tree or only the selected files"
+        },
+        "files-to-llm-prompt.stripPatternsEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Apply custom regex strip patterns to file contents before generating the prompt"
+        },
+        "files-to-llm-prompt.stripPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Regex patterns used to remove matching content from files before prompt generation"
         }
       }
     }
