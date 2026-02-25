@@ -3,7 +3,7 @@
   "displayName": "Files to LLM Prompt",
   "description": "Concatenate files into prompts for LLMs. Optimized for Claude XML.",
   "icon": "logo.png",
-  "version": "1.2.0",
+  "version": "1.5.0",
   "publisher": "DhrxvExtensions",
   "repository": {
     "type": "git",
@@ -20,11 +20,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished",
-    "onView:files-to-llm-prompt-explorer",
-    "onView:files-to-llm-prompt-settings",
-    "onCommand:files-to-llm-prompt.generatePrompt",
-    "onCommand:files-to-llm-prompt.openPreview"
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -87,13 +83,15 @@
           "id": "files-to-llm-prompt-explorer",
           "name": "Files Explorer",
           "type": "tree",
-          "visibility": "visible"
+          "visibility": "visible",
+          "icon": "file-code.svg"
         },
         {
           "id": "files-to-llm-prompt-settings",
           "name": "Settings",
           "type": "webview",
-          "visibility": "visible"
+          "visibility": "visible",
+          "icon": "logo.png"
         }
       ]
     },
