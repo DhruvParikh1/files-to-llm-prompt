@@ -35,6 +35,11 @@ export function activate(context: vscode.ExtensionContext) {
             (searchTerm: string) => fileExplorerProvider.searchWorkspaceFiles(searchTerm)
         )
     );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('files-to-llm-prompt.openPreview', () => {
+            PreviewPanel.createOrShow(context.extensionUri);
+        })
+    );
 
     // Register tree view
     const treeView = vscode.window.createTreeView('files-to-llm-prompt-explorer', {
@@ -113,7 +118,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const prompt = await generatePrompt(selectedFiles, {
                     includeHidden: config.get('includeHidden') || false,
                     includeDirectories: config.get('includeDirectories') || false,
-                    ignoreGitignore: config.get('ignoreGitignore') || false,
+                    overrideGitignore: config.get('overrideGitignore') || false,
                     ignorePatterns: config.get('ignorePatterns') || [],
                     outputFormat: config.get('outputFormat') || 'claude-xml',
                     pathStyle: config.get('pathStyle') || 'absolute',
@@ -138,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
                             {
                                 includeHidden: config.get('includeHidden') || false,
                                 includeDirectories: config.get('includeDirectories') || false,
-                                ignoreGitignore: config.get('ignoreGitignore') || false,
+                                overrideGitignore: config.get('overrideGitignore') || false,
                                 ignorePatterns: config.get('ignorePatterns') || [],
                                 outputFormat: config.get('outputFormat') || 'claude-xml',
                                 pathStyle: config.get('pathStyle') || 'absolute'

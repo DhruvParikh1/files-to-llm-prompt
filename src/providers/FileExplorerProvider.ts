@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { PreviewPanel } from '../panels/PreviewPanel';
 import { search } from 'fast-fuzzy';
+import { isPathIgnoredByGitignore } from '../utils/gitignoreUtils';
 
 export interface ExcludedEntry {
     path: string;
@@ -21,7 +22,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     private selectedFiles: Set<string> = new Set();
     private allFiles: Set<string> = new Set();
-    private treeView?: vscode.TreeView<FileItem>;
     private debugLogger: vscode.OutputChannel;
 
     constructor(private context: vscode.ExtensionContext) {
@@ -61,10 +61,6 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             })
         );
 
-        this.treeView = vscode.window.createTreeView('files-to-llm-prompt-explorer', {
-            treeDataProvider: this
-        });
-
         context.subscriptions.push(
             vscode.commands.registerCommand('files-to-llm-prompt.selectAll', () => {
                 this.selectAll();
@@ -77,12 +73,11 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             })
         );
 
-        context.subscriptions.push(this.treeView);
-        
         // Log initial configuration
         const initialConfig = vscode.workspace.getConfiguration('files-to-llm-prompt');
         this.debugLogger.appendLine('\n=== Initial Configuration ===');
         this.debugLogger.appendLine(`Config: ${JSON.stringify(initialConfig, null, 2)}`);
+        void this.rebuildAllFiles();
     }
 
     private clearExclusions(): void {
@@ -96,6 +91,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
+        void this.rebuildAllFiles();
 
         // Update preview panel with available files if it exists
         if (PreviewPanel.currentPanel) {
@@ -128,39 +124,28 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
 
         try {
             const children = await vscode.workspace.fs.readDirectory(element.resourceUri);
-            const items = await Promise.all(
-                children
-                    .filter(([name, type]) => {
-                        if (!this.shouldInclude(name, type === vscode.FileType.Directory, element.resourceUri)) {
-                            return false;
-                        }
-                        return true;
-                    })
-                    .map(async ([name, type]) => {
-                        const uri = vscode.Uri.joinPath(element.resourceUri, name);
-                        const collapsibleState = type === vscode.FileType.Directory
-                            ? vscode.TreeItemCollapsibleState.Collapsed
-                            : vscode.TreeItemCollapsibleState.None;
-                        
-                        const item = new FileItem(
-                            name,
-                            uri,
-                            collapsibleState,
-                            type === vscode.FileType.Directory ? 'folder' : 'file',
-                            this.selectedFiles,
-                            this.isDirectorySelected.bind(this)
-                        );
-                        
-                        if (type === vscode.FileType.File) {
-                            const shouldAdd = this.shouldInclude(name, false, element.resourceUri);
-                            if (shouldAdd) {
-                                this.allFiles.add(uri.fsPath);
-                            }
-                        }
+            const items: FileItem[] = [];
+            for (const [name, type] of children) {
+                const isDirectory = type === vscode.FileType.Directory;
+                if (!await this.shouldInclude(name, isDirectory, element.resourceUri)) {
+                    continue;
+                }
 
-                        return item;
-                    })
-            );
+                const uri = vscode.Uri.joinPath(element.resourceUri, name);
+                const collapsibleState = isDirectory
+                    ? vscode.TreeItemCollapsibleState.Collapsed
+                    : vscode.TreeItemCollapsibleState.None;
+
+                const item = new FileItem(
+                    name,
+                    uri,
+                    collapsibleState,
+                    isDirectory ? 'folder' : 'file',
+                    this.selectedFiles,
+                    this.isDirectorySelected.bind(this)
+                );
+                items.push(item);
+            }
 
             // After processing all children, update PreviewPanel
             if (PreviewPanel.currentPanel) {
@@ -179,7 +164,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         }
     }
 
-    private shouldInclude(name: string, isDirectory: boolean, parentUri: vscode.Uri): boolean {
+    private async shouldInclude(name: string, isDirectory: boolean, parentUri: vscode.Uri): Promise<boolean> {
         const config = vscode.workspace.getConfiguration('files-to-llm-prompt');
         const includeHidden = config.get<boolean>('includeHidden');
         const ignorePatterns = config.get<string[]>('ignorePatterns') || [];
@@ -313,8 +298,15 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             }
         }
     
-        if (!overrideGitignore) {
-            // Add .gitignore checking logic here if needed
+        if (!overrideGitignore && await isPathIgnoredByGitignore(fullPath, isDirectory)) {
+            this.debugLogger.appendLine('Excluded: Matched .gitignore');
+            this.addExclusion({
+                path: fullPath,
+                displayPath: this.getDisplayPath(fullPath),
+                type: isDirectory ? 'directory' : 'file',
+                pattern: '.gitignore'
+            });
+            return false;
         }
         
         this.debugLogger.appendLine(`Included: Passed all checks`);
@@ -349,6 +341,54 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
         return Array.from(this.excludedEntries.values());
     }
 
+    private async rebuildAllFiles(): Promise<void> {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const nextFiles = new Set<string>();
+
+        if (!workspaceFolders) {
+            this.allFiles = nextFiles;
+            this.selectedFiles.clear();
+            return;
+        }
+
+        for (const folder of workspaceFolders) {
+            await this.collectFilteredFiles(folder.uri, nextFiles);
+        }
+
+        this.allFiles = nextFiles;
+        this.selectedFiles = new Set(
+            Array.from(this.selectedFiles).filter(filePath => nextFiles.has(filePath))
+        );
+
+        if (PreviewPanel.currentPanel) {
+            PreviewPanel.currentPanel.updateAvailableFiles(this.getAllFiles());
+            PreviewPanel.currentPanel.updateFileList(Array.from(this.selectedFiles));
+        }
+    }
+
+    private async collectFilteredFiles(directoryUri: vscode.Uri, collector: Set<string>): Promise<void> {
+        let entries: [string, vscode.FileType][];
+        try {
+            entries = await vscode.workspace.fs.readDirectory(directoryUri);
+        } catch {
+            return;
+        }
+
+        for (const [name, type] of entries) {
+            const isDirectory = type === vscode.FileType.Directory;
+            if (!await this.shouldInclude(name, isDirectory, directoryUri)) {
+                continue;
+            }
+
+            const entryUri = vscode.Uri.joinPath(directoryUri, name);
+            if (isDirectory) {
+                await this.collectFilteredFiles(entryUri, collector);
+            } else if (type === vscode.FileType.File) {
+                collector.add(entryUri.fsPath);
+            }
+        }
+    }
+
     private async getAllFilesInDirectory(uri: vscode.Uri): Promise<string[]> {
         const files: string[] = [];
         
@@ -357,7 +397,7 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
             for (const [name, type] of entries) {
                 const entryUri = vscode.Uri.joinPath(uri, name);
                 
-                if (!this.shouldInclude(name, type === vscode.FileType.Directory, uri)) {
+                if (!await this.shouldInclude(name, type === vscode.FileType.Directory, uri)) {
                     continue;
                 }
 
@@ -419,11 +459,17 @@ export class FileExplorerProvider implements vscode.TreeDataProvider<FileItem> {
                 20 // Increased limit slightly
             );
 
-            // Add these to our allFiles set
-            workspaceResults.forEach(uri => this.allFiles.add(uri.fsPath));
+            const discoveredFiles = new Set(this.allFiles);
+            for (const uri of workspaceResults) {
+                const parentUri = vscode.Uri.file(path.dirname(uri.fsPath));
+                const name = path.basename(uri.fsPath);
+                if (await this.shouldInclude(name, false, parentUri)) {
+                    discoveredFiles.add(uri.fsPath);
+                }
+            }
 
             // Get all available files including new ones
-            const allFiles = Array.from(this.allFiles);
+            const allFiles = Array.from(discoveredFiles);
 
             // Prepare data for fuzzy search
             const searchData = allFiles.map(filePath => ({

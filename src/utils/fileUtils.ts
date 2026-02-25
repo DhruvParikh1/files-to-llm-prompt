@@ -1,11 +1,11 @@
 ﻿import * as vscode from 'vscode';
 import * as path from 'path';
-import { readGitignore, isIgnored } from './gitignoreUtils';
+import { isPathIgnoredByGitignore } from './gitignoreUtils';
 
 interface ProcessOptions {
     includeHidden: boolean;
     includeDirectories: boolean;
-    ignoreGitignore: boolean;
+    overrideGitignore: boolean;
     ignorePatterns: string[];
     outputFormat: 'default' | 'claude-xml';
     pathStyle?: 'absolute' | 'relative';
@@ -24,16 +24,12 @@ export async function generatePrompt(
     options: ProcessOptions
 ): Promise<string> {
     try {
-        const files = await Promise.all(filePaths.map(async (filePath) => {
-            const content = await vscode.workspace.fs.readFile(vscode.Uri.file(filePath));
-            const rawContent = Buffer.from(content).toString('utf-8');
-            const transformedContent = options.stripPatternsEnabled
-                ? applyStripPatterns(rawContent, options.stripPatterns || [])
-                : rawContent;
-            return {
-                path: getOutputPath(filePath, options.pathStyle || 'absolute'),
-                content: transformedContent
-            };
+        const processedFiles = await processFiles(filePaths, options);
+        const files = processedFiles.map(file => ({
+            path: getOutputPath(file.path, options.pathStyle || 'absolute'),
+            content: options.stripPatternsEnabled
+                ? applyStripPatterns(file.content, options.stripPatterns || [])
+                : file.content
         }));
 
         return formatOutput(files, options.outputFormat);
@@ -48,16 +44,6 @@ export async function processFiles(
     options: ProcessOptions
 ): Promise<{ path: string; content: string }[]> {
     const results: { path: string; content: string }[] = [];
-    const gitignorePatterns: string[] = [];
-
-    if (!options.ignoreGitignore) {
-        // Read all relevant .gitignore files
-        for (const filePath of filePaths) {
-            const dirPath = path.dirname(filePath);
-            const patterns = await readGitignore(dirPath);
-            gitignorePatterns.push(...patterns);
-        }
-    }
 
     for (const filePath of filePaths) {
         try {
@@ -67,7 +53,7 @@ export async function processFiles(
                 continue;
             }
 
-            if (!options.ignoreGitignore && isIgnored(filePath, gitignorePatterns)) {
+            if (!options.overrideGitignore && await isPathIgnoredByGitignore(filePath, false)) {
                 continue;
             }
 
@@ -252,13 +238,13 @@ function insertPathIntoTree(root: TreeNode, segments: string[]): void {
 async function buildTree(
     currentPath: string,
     options: ProcessOptions,
-    depth: number = 0
 ): Promise<TreeNode | null> {
     const stats = await vscode.workspace.fs.stat(vscode.Uri.file(currentPath));
     const name = path.basename(currentPath);
+    const isDirectory = stats.type === vscode.FileType.Directory;
 
     // Check if the current item should be included based on options
-    if (!shouldIncludeInTree(name, stats.type === vscode.FileType.Directory, currentPath, options)) {
+    if (!await shouldIncludeInTree(name, isDirectory, currentPath, options)) {
         return null;
     }
 
@@ -272,7 +258,7 @@ async function buildTree(
 
     for (const [childName] of entries) {
         const childPath = path.join(currentPath, childName);
-        const childNode = await buildTree(childPath, options, depth + 1);
+        const childNode = await buildTree(childPath, options);
         if (childNode) {
             children.push(childNode);
         }
@@ -331,14 +317,12 @@ function formatTreeChild(node: TreeNode, prefix: string, isLast: boolean): strin
     return result;
 }
 
-function shouldIncludeInTree(
+async function shouldIncludeInTree(
     name: string,
     isDirectory: boolean,
     fullPath: string,
     options: ProcessOptions
-): boolean {
-    // Reuse existing shouldInclude logic from FileExplorerProvider
-    // but simplified for tree structure
+): Promise<boolean> {
     if (!options.includeHidden && name.startsWith('.')) {
         return false;
     }
@@ -349,7 +333,10 @@ function shouldIncludeInTree(
             continue;
         }
 
-        // Convert glob pattern to regex
+        if (isDirectory && !options.includeDirectories) {
+            continue;
+        }
+
         const regex = new RegExp(pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.'));
 
         if (regex.test(name)) {
@@ -357,8 +344,8 @@ function shouldIncludeInTree(
         }
     }
 
-    if (!options.ignoreGitignore) {
-        // Add gitignore checking logic here
+    if (!options.overrideGitignore && await isPathIgnoredByGitignore(fullPath, isDirectory)) {
+        return false;
     }
 
     return true;

@@ -3,7 +3,7 @@
   "displayName": "Files to LLM Prompt",
   "description": "Concatenate files into prompts for LLMs. Optimized for Claude XML.",
   "icon": "logo.png",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "publisher": "DhrxvExtensions",
   "repository": {
     "type": "git",
